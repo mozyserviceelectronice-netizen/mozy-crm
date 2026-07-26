@@ -1,0 +1,64 @@
+<%- include('partials/header', {
+  title: 'Link de semnare — Mozy CRM',
+  active
+}) %>
+
+<div class="page-heading">
+  <div>
+    <span class="eyebrow">Recepție atelier</span>
+    <h1>Link securizat generat</h1>
+  </div>
+</div>
+
+<section class="panel">
+  <p>
+    Linkul pentru recepția
+    <strong><%= receptie.numar_receptie || `#${receptie.id}` %></strong>
+    este valabil 48 de ore.
+  </p>
+
+  <p>
+    Generarea unui link nou îl invalidează imediat pe cel anterior.
+    Tokenul integral nu este păstrat în baza de date.
+  </p>
+
+  <% if (whatsappTrimis) { %>
+    <div class="reception-message success">
+      Linkul a fost trimis pe WhatsApp la
+      <strong><%= receptie.telefon %></strong>.
+    </div>
+  <% } else { %>
+    <div class="reception-message error">
+      Linkul a fost generat, dar trimiterea pe WhatsApp nu a reușit.
+      Îl poți copia și trimite manual. Detaliu:
+      <%= whatsappEroare || 'eroare necunoscută' %>
+    </div>
+  <% } %>
+
+  <label class="full-width">
+    Link pentru client
+    <input
+      id="signing-url"
+      type="text"
+      readonly
+      value="<%= signingUrl %>"
+      class="full-width-input"
+    >
+  </label>
+
+  <div class="form-actions signing-link-actions">
+    <button
+      class="button primary"
+      type="button"
+      data-action="copy"
+      data-copy-target="#signing-url"
+    >
+      Copiază linkul
+    </button>
+    <a class="button ghost" href="/receptie/<%= receptie.id %>">
+      Înapoi la recepție
+    </a>
+  </div>
+</section>
+
+<%- include('partials/footer') %>

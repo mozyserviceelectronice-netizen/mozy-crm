@@ -1,0 +1,269 @@
+<%
+const equipment = [
+  field.tip_echipament === 'Altul'
+    ? field.descriere_echipament
+    : field.tip_echipament,
+  field.marca,
+  field.model
+].filter(Boolean).join(' · ') || 'Echipament neidentificat';
+const testLabels = {
+  functional: 'Probat în prezența clientului — funcțional',
+  nereparat: 'Probat în prezența clientului — nereparat',
+  refuz_client: 'Clientul a refuzat proba',
+  imposibil: 'Proba nu a fost posibilă'
+};
+%>
+<!doctype html>
+<html lang="ro">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Proces-verbal — Mozy Service</title>
+  <style nonce="<%= cspNonce %>">
+    *{box-sizing:border-box}body{margin:0;background:#f4f7fb;color:#172033;font-family:system-ui,sans-serif}
+    main{max-width:920px;margin:0 auto;padding:24px 16px 48px}
+    header,section{background:#fff;border:1px solid #dbe3ef;border-radius:16px;padding:22px;margin-bottom:16px;box-shadow:0 8px 28px rgba(16,24,40,.06)}
+    h1,h2{margin-top:0}h1{font-size:27px}h2{font-size:19px}.muted{color:#667085}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:14px 24px}dl{margin:0}
+    dt{font-size:12px;font-weight:700;color:#667085;text-transform:uppercase;margin-top:12px}
+    dd{margin:4px 0 0;white-space:pre-wrap}.notice{padding:15px;border-radius:11px;background:#eef4ff;color:#1d4f91;line-height:1.55}
+    .legal{white-space:pre-wrap;line-height:1.58;color:#344054;background:#f8fafc;border:1px solid #e4e7ec;border-radius:12px;padding:16px;max-height:360px;overflow:auto}
+    .error{padding:14px;border-radius:10px;background:#fff1f0;color:#9f1c14;border:1px solid #ffc9c4;margin-bottom:16px}
+    .confirm{display:flex;gap:10px;align-items:flex-start;margin:16px 0;line-height:1.5}
+    .confirm input{width:21px;height:21px;flex:0 0 auto;margin-top:1px}
+    .signature-box{border:2px solid #98a2b3;border-radius:12px;background:#fff;overflow:hidden}
+    #signature-canvas{display:block;width:100%;height:auto;touch-action:none;cursor:crosshair}
+    .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+    button{border:0;border-radius:10px;padding:12px 18px;font:inherit;font-weight:700;cursor:pointer}
+    .primary{background:#175cd3;color:#fff}.secondary{background:#eaecf0;color:#344054}
+    button:disabled{opacity:.55;cursor:not-allowed}
+    @media(max-width:650px){.grid{grid-template-columns:1fr}h1{font-size:22px}header,section{padding:17px}}
+  </style>
+  <meta name="csrf-token" content="<%= csrfToken %>">
+</head>
+<body>
+  <main>
+    <% if (field.este_test) { %>
+      <div class="error">
+        <strong>DOCUMENT DE TEST – FĂRĂ VALOARE</strong>
+      </div>
+    <% } %>
+    <header>
+      <p class="muted">Mozy Service Electronice</p>
+      <h1><%= operationLabels[field.tip_operatiune] %></h1>
+      <p class="muted"><%= field.numar_interventie %></p>
+    </header>
+
+    <section>
+      <h2>Datele procesului-verbal</h2>
+      <div class="grid">
+        <dl>
+          <dt>Client</dt>
+          <dd><%= String(field.nume || '').trim() || 'Client fără nume' %></dd>
+          <dt>Telefon</dt><dd><%= field.telefon || '—' %></dd>
+          <dt>Adresă</dt><dd><%= field.adresa_interventie || '—' %></dd>
+        </dl>
+        <dl>
+          <dt>Echipament</dt><dd><%= equipment %></dd>
+          <dt>Serie</dt><dd><%= field.serie || '—' %></dd>
+          <% if (field.context_operatiune !== 'atelier') { %>
+            <dt>Tehnician</dt><dd><%= field.tehnician_cod %></dd>
+          <% } %>
+        </dl>
+        <dl>
+          <dt>Defect reclamat</dt><dd><%= field.defect_reclamat || '—' %></dd>
+          <dt>Accesorii</dt>
+          <dd><%= field.are_accesorii ? (field.accesorii || 'Accesorii predate') : 'Nu are accesorii' %></dd>
+          <% if (field.tip_operatiune === 'ridicare') { %>
+            <dt>Ambalat de client</dt>
+            <dd><%= field.ambalat_de_client === true
+              ? 'Da'
+              : field.ambalat_de_client === false
+                ? 'Nu'
+                : 'Nespecificat'
+            %></dd>
+            <% if (field.ambalat_de_client === true) { %>
+              <dt>Starea ambalării</dt>
+              <dd><%= field.stare_ambalaj === 'corespunzator'
+                ? 'Corespunzătoare'
+                : 'Insuficientă'
+              %></dd>
+            <% } %>
+          <% } %>
+        </dl>
+        <dl>
+          <dt>Intervenție efectuată</dt><dd><%= field.interventie_efectuata || '—' %></dd>
+          <dt>Rezultatul probei</dt><dd><%= testLabels[field.rezultat_proba] || '—' %></dd>
+          <dt>Motiv / observații</dt><dd><%= field.motiv_proba || '—' %></dd>
+        </dl>
+      </div>
+    </section>
+
+    <section>
+      <h2>Confirmare și semnătură</h2>
+
+      <% if (error) { %>
+        <div class="error"><%= error %></div>
+      <% } %>
+
+      <div class="notice">
+        <% if (field.tip_operatiune === 'ridicare') { %>
+          Confirm predarea către Mozy Service Electronice a echipamentului
+          și accesoriilor descrise mai sus, pentru transport și service.
+          Echipamentul este ridicat de echipa de teren și va fi înregistrat
+          în atelier.
+        <% } else if (field.tip_operatiune === 'predare_reparat') { %>
+          Confirm că am primit echipamentul și accesoriile descrise mai sus,
+          că echipamentul mi-a fost prezentat pentru probă și că rezultatul
+          probei consemnat în acest proces-verbal este corect.
+        <% } else if (field.tip_operatiune === 'predare_nereparat') { %>
+          Confirm că am primit echipamentul și accesoriile descrise mai sus,
+          nereparate, în aceeași stare consemnată la predare, fără remedierea
+          defectului reclamat.
+        <% } else { %>
+          Confirm că am primit echipamentul și accesoriile descrise mai sus,
+          iar situația probei și a predării este consemnată corect.
+        <% } %>
+      </div>
+
+      <form id="signing-form" method="post" action="" autocomplete="off">
+        <label class="confirm">
+          <input type="checkbox" name="confirmare_pv" value="da" required>
+          <span>
+            Am verificat datele procesului-verbal, confirm că sunt corecte
+            și accept semnarea electronică simplă.
+          </span>
+        </label>
+
+        <h2>Termeni și condiții</h2>
+        <div class="legal"><%= fieldTermsText %></div>
+        <label class="confirm">
+          <input type="checkbox" name="termeni_acceptati" value="da" required>
+          <span>
+            Am citit și accept integral termenii și condițiile de mai sus.
+          </span>
+        </label>
+
+        <h2>Informare privind datele personale</h2>
+        <div class="legal"><%= fieldGdprText %></div>
+        <label class="confirm">
+          <input
+            type="checkbox"
+            name="informare_gdpr_confirmata"
+            value="da"
+            required
+          >
+          <span>
+            Confirm că am primit și am citit informarea privind
+            prelucrarea datelor personale.
+          </span>
+        </label>
+
+        <p class="muted">
+          Semnează în chenar cu degetul, mouse-ul sau un stylus.
+        </p>
+
+        <div class="signature-box">
+          <canvas
+            id="signature-canvas"
+            width="900"
+            height="320"
+            aria-label="Câmp pentru semnătură"
+          ></canvas>
+        </div>
+
+        <input id="signature-data" type="hidden" name="semnatura_data">
+
+        <div class="actions">
+          <button class="secondary" id="clear-signature" type="button">
+            Șterge semnătura
+          </button>
+          <button class="primary" id="submit-signature" type="submit">
+            Confirm și semnez
+          </button>
+        </div>
+      </form>
+    </section>
+  </main>
+
+  <script nonce="<%= cspNonce %>">
+    (() => {
+      const form = document.getElementById('signing-form');
+      const canvas = document.getElementById('signature-canvas');
+      const context = canvas.getContext('2d');
+      const hidden = document.getElementById('signature-data');
+      const clearButton = document.getElementById('clear-signature');
+      const submitButton = document.getElementById('submit-signature');
+      let drawing = false;
+      let hasStroke = false;
+
+      form.action = window.location.pathname;
+      context.lineWidth = 4;
+      context.lineCap = 'round';
+      context.lineJoin = 'round';
+      context.strokeStyle = '#101828';
+
+      function point(event) {
+        const rect = canvas.getBoundingClientRect();
+        return {
+          x: (event.clientX - rect.left) * canvas.width / rect.width,
+          y: (event.clientY - rect.top) * canvas.height / rect.height
+        };
+      }
+
+      canvas.addEventListener('pointerdown', event => {
+        event.preventDefault();
+        drawing = true;
+        canvas.setPointerCapture(event.pointerId);
+        const current = point(event);
+        context.beginPath();
+        context.moveTo(current.x, current.y);
+      });
+
+      canvas.addEventListener('pointermove', event => {
+        if (!drawing) return;
+        event.preventDefault();
+        const current = point(event);
+        context.lineTo(current.x, current.y);
+        context.stroke();
+        hasStroke = true;
+      });
+
+      function stopDrawing(event) {
+        if (!drawing) return;
+        drawing = false;
+        context.closePath();
+        if (
+          event.pointerId !== undefined &&
+          canvas.hasPointerCapture(event.pointerId)
+        ) {
+          canvas.releasePointerCapture(event.pointerId);
+        }
+      }
+
+      canvas.addEventListener('pointerup', stopDrawing);
+      canvas.addEventListener('pointercancel', stopDrawing);
+
+      clearButton.addEventListener('click', () => {
+        context.clearRect(0, 0, canvas.width, canvas.height);
+        hidden.value = '';
+        hasStroke = false;
+      });
+
+      form.addEventListener('submit', event => {
+        if (!hasStroke) {
+          event.preventDefault();
+          window.alert('Semnează în chenar înainte de trimitere.');
+          return;
+        }
+
+        hidden.value = canvas.toDataURL('image/png');
+        submitButton.disabled = true;
+        submitButton.textContent = 'Se înregistrează…';
+      });
+    })();
+  </script>
+  <script src="/app.js" defer></script>
+</body>
+</html>

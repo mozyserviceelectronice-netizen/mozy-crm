@@ -1,0 +1,346 @@
+<%- include('partials/header', {
+  title: 'Setări — Mozy CRM',
+  active
+}) %>
+
+<section class="page-heading">
+  <div>
+    <h1>Setări</h1>
+    <p>Conturi, copii de siguranță și actualizarea controlată a CRM-ului.</p>
+  </div>
+</section>
+
+<%
+  const successMessages = {
+    utilizator_creat: 'Utilizatorul a fost creat.',
+    utilizator_activat: 'Contul a fost activat.',
+    utilizator_dezactivat: 'Contul a fost dezactivat.',
+    parola_resetata: 'Parola a fost schimbată.'
+  };
+  const errorMessages = {
+    username_nevalid: 'Utilizatorul trebuie să aibă 3–50 de caractere: litere, cifre, punct, minus sau underscore.',
+    parola_scurta: 'Parola trebuie să aibă cel puțin 10 caractere.',
+    parole_diferite: 'Parolele introduse nu coincid.',
+    username_existent: 'Există deja un cont cu acest utilizator.',
+    cont_propriu: 'Nu îți poți dezactiva propriul cont.',
+    utilizator_inexistent: 'Utilizatorul nu există.'
+  };
+%>
+
+<% if (successMessages[success]) { %>
+  <div class="alert success"><%= successMessages[success] %></div>
+<% } %>
+<% if (errorMessages[error]) { %>
+  <div class="alert error"><%= errorMessages[error] %></div>
+<% } %>
+
+<section class="settings-maintenance">
+  <div class="card maintenance-card">
+    <div>
+      <h2>Backup complet</h2>
+      <p>
+        Creează o copie cu baza de date, documentele, fotografiile,
+        sursa și configurația CRM.
+      </p>
+    </div>
+
+    <% if (!maintenanceAvailable) { %>
+      <div class="alert error">
+        Serviciul de backup nu este disponibil. Verifică serviciul
+        de mentenanță de pe server.
+      </div>
+    <% } %>
+
+    <button
+      class="button primary"
+      id="create-backup"
+      type="button"
+      <%= maintenanceAvailable ? '' : 'disabled' %>
+    >
+      Creează backup acum
+    </button>
+
+    <div class="maintenance-job-status" id="backup-status" hidden></div>
+
+    <div class="backup-list">
+      <% if (!backups.length) { %>
+        <p class="empty">Nu există încă backupuri create din CRM.</p>
+      <% } %>
+
+      <% backups.forEach(backup => { %>
+        <article class="backup-row">
+          <div>
+            <strong><%= backup.name %></strong>
+            <small>
+              <%= new Intl.DateTimeFormat('ro-RO', {
+                timeZone: 'Europe/Bucharest',
+                dateStyle: 'medium',
+                timeStyle: 'short'
+              }).format(new Date(backup.created_at)) %>
+              &middot;
+              <%= (Number(backup.size) / 1024 / 1024).toFixed(1) %> MB
+            </small>
+            <% if (backup.sha256) { %>
+              <code>SHA-256: <%= backup.sha256 %></code>
+            <% } %>
+          </div>
+          <a
+            class="button compact secondary"
+            href="/setari/backupuri/<%= backup.name %>/descarca"
+          >
+            Descarcă
+          </a>
+        </article>
+      <% }) %>
+    </div>
+  </div>
+
+  <div class="card maintenance-card">
+    <div>
+      <h2>Instalează versiune nouă</h2>
+      <p>
+        Sunt acceptate numai pachete Mozy verificate, în format
+        <code>.tar.gz</code>. Înainte de instalare se creează automat
+        un backup complet.
+      </p>
+    </div>
+
+    <label class="update-file-field">
+      Pachet actualizare
+      <input
+        id="update-package"
+        type="file"
+        accept=".gz,application/gzip"
+        <%= maintenanceAvailable ? '' : 'disabled' %>
+      >
+    </label>
+
+    <button
+      class="button danger"
+      id="install-update"
+      type="button"
+      disabled
+    >
+      Încarcă și instalează
+    </button>
+
+    <p class="maintenance-warning">
+      Nu închide pagina în timpul instalării. CRM-ul se va reporni
+      automat și poate fi indisponibil pentru scurt timp.
+    </p>
+    <div class="maintenance-job-status" id="update-status" hidden></div>
+  </div>
+</section>
+
+<div class="settings-grid">
+  <section class="card">
+    <h2>Utilizator nou</h2>
+    <p>Toate conturile create au drepturi complete de administrator.</p>
+
+    <form action="/setari/utilizatori" method="post" class="stack-form">
+      <label>
+        Utilizator
+        <input name="username" minlength="3" maxlength="50"
+          pattern="[A-Za-z0-9._-]+" autocomplete="off" required>
+      </label>
+      <label>
+        Parolă
+        <input type="password" name="password" minlength="10"
+          autocomplete="new-password" required>
+      </label>
+      <label>
+        Confirmă parola
+        <input type="password" name="password_confirmation" minlength="10"
+          autocomplete="new-password" required>
+      </label>
+      <button class="button primary" type="submit">
+        Creează utilizator
+      </button>
+    </form>
+  </section>
+
+  <section class="card">
+    <h2>Utilizatori existenți</h2>
+    <div class="settings-user-list">
+      <% users.forEach(user => { %>
+        <article class="settings-user">
+          <div class="settings-user-meta">
+            <strong>
+              <%= user.username %>
+              <% if (user.id === currentUser.id) { %>(tu)<% } %>
+            </strong>
+            <span class="badge <%= user.activ ? 'success' : 'muted' %>">
+              <%= user.activ ? 'Activ' : 'Inactiv' %>
+            </span>
+            <small>
+              Ultima autentificare:
+              <%= user.ultima_autentificare_la
+                ? new Date(user.ultima_autentificare_la).toLocaleString('ro-RO')
+                : 'niciodată' %>
+            </small>
+          </div>
+
+          <div class="settings-user-actions">
+            <form action="/setari/utilizatori/<%= user.id %>/status"
+              method="post">
+              <input type="hidden" name="activ"
+                value="<%= user.activ ? '0' : '1' %>">
+              <button
+                class="button compact <%= user.activ ? 'danger' : 'secondary' %>"
+                type="submit"
+                <%= user.id === currentUser.id && user.activ ? 'disabled' : '' %>
+                data-confirm="<%= user.activ ? 'Dezactivezi acest cont?' : 'Activezi acest cont?' %>"
+              >
+                <%= user.activ ? 'Dezactivează' : 'Activează' %>
+              </button>
+            </form>
+          </div>
+
+          <form action="/setari/utilizatori/<%= user.id %>/parola"
+            method="post" class="settings-reset">
+            <input type="password" name="password" minlength="10"
+              placeholder="Parolă nouă" autocomplete="new-password" required>
+            <input type="password" name="password_confirmation" minlength="10"
+              placeholder="Confirmă parola" autocomplete="new-password" required>
+            <button class="button compact secondary" type="submit">
+              <%= user.id === currentUser.id
+                ? 'Schimbă parola mea'
+                : 'Resetează parola' %>
+            </button>
+          </form>
+        </article>
+      <% }) %>
+    </div>
+  </section>
+</div>
+
+<script nonce="<%= cspNonce %>">
+  (() => {
+    const createButton = document.getElementById('create-backup');
+    const backupStatus = document.getElementById('backup-status');
+    const updateInput = document.getElementById('update-package');
+    const installButton = document.getElementById('install-update');
+    const updateStatus = document.getElementById('update-status');
+    const csrfToken = document
+      .querySelector('meta[name="csrf-token"]')
+      ?.getAttribute('content') || '';
+
+    const showStatus = (element, message, state = '') => {
+      element.hidden = false;
+      element.className = `maintenance-job-status ${state}`.trim();
+      element.textContent = message;
+    };
+
+    const jsonResponse = async response => {
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(data.error || 'Operațiunea a eșuat.');
+      }
+      return data;
+    };
+
+    const pollJob = async (jobId, statusElement) => {
+      const deadline = Date.now() + 30 * 60 * 1000;
+      while (Date.now() < deadline) {
+        let job = null;
+        try {
+          const response = await fetch(
+            `/setari/mentenanta/job/${jobId}`,
+            { cache: 'no-store' }
+          );
+          job = await jsonResponse(response);
+        } catch (error) {
+          showStatus(
+            statusElement,
+            `CRM-ul se repornește sau verificarea continuă: ${error.message}`,
+            'running'
+          );
+        }
+        if (job) {
+          showStatus(
+            statusElement,
+            `${job.message || 'Se lucrează…'}${
+              Number.isFinite(job.progress)
+                ? ` (${job.progress}%)`
+                : ''
+            }`,
+            job.status
+          );
+          if (job.status === 'completed') return job;
+          if (job.status === 'failed') {
+            throw new Error(job.message || 'Operațiunea a eșuat.');
+          }
+        }
+        await new Promise(resolve => setTimeout(resolve, 2500));
+      }
+      throw new Error('Verificarea a depășit timpul maxim permis.');
+    };
+
+    if (createButton) {
+      createButton.addEventListener('click', async () => {
+        createButton.disabled = true;
+        try {
+          showStatus(backupStatus, 'Pornire backup…', 'running');
+          const result = await jsonResponse(await fetch('/setari/backupuri', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRF-Token': csrfToken
+            },
+            body: '{}'
+          }));
+          await pollJob(result.job_id, backupStatus);
+          window.location.reload();
+        } catch (error) {
+          showStatus(backupStatus, error.message, 'failed');
+          createButton.disabled = false;
+        }
+      });
+    }
+
+    if (updateInput && installButton) {
+      updateInput.addEventListener('change', () => {
+        const file = updateInput.files[0];
+        installButton.disabled = !file ||
+          !file.name.toLowerCase().endsWith('.tar.gz');
+      });
+
+      installButton.addEventListener('click', async () => {
+        const file = updateInput.files[0];
+        if (!file) return;
+        if (!window.confirm(
+          `Instalezi pachetul ${file.name}? Înainte va fi creat un backup complet.`
+        )) return;
+
+        installButton.disabled = true;
+        updateInput.disabled = true;
+        try {
+          showStatus(updateStatus, 'Se încarcă pachetul…', 'running');
+          const response = await fetch('/setari/actualizare', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/octet-stream',
+              'X-Mozy-Filename': encodeURIComponent(file.name),
+              'X-CSRF-Token': csrfToken
+            },
+            body: file
+          });
+          const result = await jsonResponse(response);
+          await pollJob(result.job_id, updateStatus);
+          showStatus(
+            updateStatus,
+            'Actualizarea a fost instalată. Pagina se reîncarcă…',
+            'completed'
+          );
+          window.setTimeout(() => window.location.reload(), 1200);
+        } catch (error) {
+          showStatus(updateStatus, error.message, 'failed');
+          installButton.disabled = false;
+          updateInput.disabled = false;
+        }
+      });
+    }
+  })();
+</script>
+
+<%- include('partials/footer') %>

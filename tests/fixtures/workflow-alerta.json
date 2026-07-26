@@ -1,0 +1,233 @@
+{
+  "name": "Mozy - Alerta WhatsApp 30 minute - registru separat",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -224,
+        0
+      ],
+      "id": "d9ebec37-7794-46ca-8b00-f34530b5b001",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH ultimul_mesaj AS (\n  SELECT DISTINCT ON (m.contact_id)\n    m.id AS message_row_id,\n    m.contact_id,\n    m.directie,\n    m.tip,\n    m.mesaj,\n    m.created_at,\n    m.necesita_raspuns,\n    m.alerta_trimisa\n  FROM whatsapp.mesaje m\n  ORDER BY m.contact_id, m.created_at DESC, m.id DESC\n)\nSELECT\n  u.message_row_id,\n  u.contact_id,\n  c.nume,\n  c.telefon,\n  u.tip,\n  u.mesaj AS ultimul_mesaj,\n  u.created_at AS data_mesaj,\n  FLOOR(EXTRACT(EPOCH FROM (\n    CURRENT_TIMESTAMP - u.created_at\n  )) / 60)::integer AS minute_asteptare\nFROM ultimul_mesaj u\nJOIN whatsapp.contacte c ON c.id = u.contact_id\nWHERE u.directie = 'incoming'\n  AND u.necesita_raspuns = true\n  AND u.created_at <= CURRENT_TIMESTAMP - INTERVAL '30 minutes'\n  AND u.alerta_trimisa = false\nORDER BY u.created_at ASC;",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        48,
+        0
+      ],
+      "id": "285c8995-d77e-4ae6-a8f0-8679e2286a04",
+      "name": "Get Unanswered Clients",
+      "credentials": {
+        "postgres": {
+          "id": "7MLsduEbzQLaYaC3",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const nume = $json.nume?.trim() || 'Nume necunoscut';\nconst telefon = $json.telefon || 'Telefon necunoscut';\nconst minute = Number($json.minute_asteptare || 0);\n\nlet mesajClient = $json.ultimul_mesaj || '';\n\nif ($json.tip === 'image') {\n  try {\n    const vision = JSON.parse(mesajClient);\n\n    const identificare = [\n      vision.marca,\n      vision.model\n    ]\n      .filter(Boolean)\n      .join(' ');\n\n    mesajClient = identificare\n      ? `Imagine TV: ${identificare}`\n      : 'Clientul a trimis o imagine.';\n  } catch {\n    mesajClient = 'Clientul a trimis o imagine.';\n  }\n}\n\nconst mesajAlerta =\n`⚠️ Client fără răspuns\n\nNume: ${nume}\nTelefon: ${telefon}\n\nUltimul mesaj:\n${mesajClient}\n\nTimp de așteptare: ${minute} minute.`;\n\nreturn {\n  json: {\n    ...$json,\n    mesaj_alerta: mesajAlerta\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        304,
+        0
+      ],
+      "id": "f6a796ac-5c59-4c37-aeab-d14065c75f72",
+      "name": "Format Unanswered Alert"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://wa.reparatii-televizoare.com/message/sendText/mozy",
+        "sendHeaders": true,
+        "specifyHeaders": "=keypair",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "REPLACE_WITH_EVOLUTION_API_KEY"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "number",
+              "value": "40771559501"
+            },
+            {
+              "name": "text",
+              "value": "={{ $json.mesaj_alerta }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        528,
+        0
+      ],
+      "id": "04151cc1-2ba6-4999-ac1c-b465a04923a1",
+      "name": "Send WhatsApp - Andrei"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://wa.reparatii-televizoare.com/message/sendText/mozy",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "REPLACE_WITH_EVOLUTION_API_KEY"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "number",
+              "value": "40721341491"
+            },
+            {
+              "name": "text",
+              "value": "={{ $('Format Unanswered Alert').item.json.mesaj_alerta }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        768,
+        0
+      ],
+      "id": "56f4485b-d604-4e39-8a37-00d023f71faa",
+      "name": "Send WhatsApp - Giani"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "UPDATE whatsapp.mesaje\nSET alerta_trimisa = true\nWHERE id = $1::bigint\nRETURNING id, contact_id, necesita_raspuns, alerta_trimisa, created_at;",
+        "options": {
+          "queryReplacement": "={{ [$('Format Unanswered Alert').item.json.message_row_id] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        976,
+        0
+      ],
+      "id": "0dba2a4d-a665-42b3-aacf-5d57003972eb",
+      "name": "Mark Alert Sent",
+      "credentials": {
+        "postgres": {
+          "id": "7MLsduEbzQLaYaC3",
+          "name": "Postgres account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Unanswered Clients",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Unanswered Clients": {
+      "main": [
+        [
+          {
+            "node": "Format Unanswered Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Unanswered Alert": {
+      "main": [
+        [
+          {
+            "node": "Send WhatsApp - Andrei",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send WhatsApp - Andrei": {
+      "main": [
+        [
+          {
+            "node": "Send WhatsApp - Giani",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send WhatsApp - Giani": {
+      "main": [
+        [
+          {
+            "node": "Mark Alert Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "99b308eb-ebf9-430b-bf1b-dc19f437c3cb",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "0739d1da5132411f7037ebafc68a64ccb348c85300b52997ca9cc9b64fd00a51"
+  },
+  "nodeGroups": [],
+  "id": "72Tk5UoAQu0MiGsS",
+  "tags": []
+}

@@ -1,0 +1,352 @@
+<%
+  const isEdit = mode === 'edit';
+  const formAction = isEdit
+    ? `/tehnician/programari/${appointmentId}/editeaza`
+    : '/tehnician/programari/noua';
+  const listUrl =
+    `/tehnician/programari?data=${encodeURIComponent(values.data_programare)}`;
+%>
+<%- include('partials/header', {
+  title: `${isEdit ? 'Editare programare' : 'Programare nouă'} - Mozy CRM`,
+  active
+}) %>
+
+<nav class="technician-tabs" aria-label="Secțiuni tehnician">
+  <a href="/teren">Teren</a>
+  <a class="active" href="/tehnician/programari">Programări</a>
+</nav>
+
+<div class="page-heading">
+  <div>
+    <span class="eyebrow">Tehnician</span>
+    <h1><%= isEdit ? 'Editare programare' : 'Programare nouă' %></h1>
+  </div>
+  <a class="button ghost" href="<%= listUrl %>">
+    Înapoi la programări
+  </a>
+</div>
+
+<% if (errors.length) { %>
+  <div class="reception-message error" role="alert">
+    <strong>Programarea nu a fost salvată:</strong>
+    <ul>
+      <% errors.forEach(error => { %>
+        <li><%= error %></li>
+      <% }) %>
+    </ul>
+  </div>
+<% } %>
+
+<section class="panel technician-form-panel">
+  <form
+    class="technician-appointment-form"
+    method="post"
+    action="<%= formAction %>"
+    data-appointment-form
+  >
+    <fieldset class="appointment-form-section">
+      <legend>Client și deplasare</legend>
+      <div class="appointment-form-grid">
+        <label>
+          Telefon <span aria-hidden="true">*</span>
+          <input
+            name="telefon"
+            type="tel"
+            maxlength="20"
+            value="<%= values.telefon %>"
+            autocomplete="tel"
+            required
+          >
+        </label>
+
+        <label>
+          Nume
+          <input
+            name="nume"
+            type="text"
+            maxlength="255"
+            value="<%= values.nume %>"
+            autocomplete="name"
+          >
+        </label>
+
+        <label>
+          Tehnician <span aria-hidden="true">*</span>
+          <select name="tehnician_user_id" required>
+            <% technicians.forEach(technician => { %>
+              <option
+                value="<%= technician.id %>"
+                <%= String(values.tehnician_user_id) === String(technician.id) ? 'selected' : '' %>
+              ><%= technician.displayName %></option>
+            <% }) %>
+          </select>
+        </label>
+
+        <label>
+          Tip deplasare <span aria-hidden="true">*</span>
+          <select name="tip_deplasare" required>
+            <% Object.entries(travelTypes).forEach(([value, label]) => { %>
+              <option
+                value="<%= value %>"
+                <%= values.tip_deplasare === value ? 'selected' : '' %>
+              ><%= label %></option>
+            <% }) %>
+          </select>
+        </label>
+
+        <label>
+          Oraș / localitate <span aria-hidden="true">*</span>
+          <input
+            name="oras"
+            type="text"
+            maxlength="100"
+            value="<%= values.oras %>"
+            autocomplete="address-level2"
+            required
+          >
+        </label>
+
+        <label class="appointment-form-full">
+          Adresă <span aria-hidden="true">*</span>
+          <textarea
+            name="adresa"
+            rows="2"
+            autocomplete="street-address"
+            required
+          ><%= values.adresa %></textarea>
+        </label>
+      </div>
+    </fieldset>
+
+    <fieldset class="appointment-form-section">
+      <legend>Echipament</legend>
+      <div class="appointment-form-grid">
+        <label>
+          Marca TV <span aria-hidden="true">*</span>
+          <input
+            name="marca"
+            type="text"
+            maxlength="100"
+            value="<%= values.marca %>"
+            required
+          >
+        </label>
+
+        <label>
+          Model
+          <input
+            name="model"
+            type="text"
+            maxlength="120"
+            value="<%= values.model %>"
+          >
+        </label>
+
+        <label class="appointment-form-full">
+          Defect reclamat <span aria-hidden="true">*</span>
+          <textarea
+            name="defect_reclamat"
+            rows="3"
+            required
+          ><%= values.defect_reclamat %></textarea>
+        </label>
+      </div>
+    </fieldset>
+
+    <fieldset class="appointment-form-section">
+      <legend>Variante de preț</legend>
+      <p class="appointment-form-help">
+        Costul deplasării se completează separat. Pentru mai multe
+        variante, descrierea fiecăreia este obligatorie.
+      </p>
+
+      <div
+        class="appointment-price-editor"
+        data-price-editor
+      >
+        <div class="appointment-price-rows" data-price-rows>
+          <% values.priceRows.forEach((price, index) => { %>
+            <div class="appointment-price-row" data-price-row>
+              <label>
+                Valoare (lei)
+                <input
+                  name="pret_valoare"
+                  type="number"
+                  min="0"
+                  max="999999.99"
+                  step="0.01"
+                  inputmode="decimal"
+                  value="<%= price.amount %>"
+                  aria-label="Valoarea variantei de preț <%= index + 1 %>"
+                  required
+                >
+              </label>
+              <label>
+                Descriere / condiție
+                <input
+                  name="pret_descriere"
+                  type="text"
+                  maxlength="160"
+                  value="<%= price.description %>"
+                  aria-label="Descrierea variantei de preț <%= index + 1 %>"
+                >
+              </label>
+              <button
+                class="button ghost price-remove-button"
+                type="button"
+                data-remove-price
+              >Elimină</button>
+            </div>
+          <% }) %>
+        </div>
+        <button
+          class="button ghost"
+          type="button"
+          data-add-price
+        >+ Adaugă variantă de preț</button>
+      </div>
+
+      <div class="appointment-form-grid appointment-commercial-grid">
+        <label>
+          Cost deplasare (lei)
+          <input
+            name="cost_deplasare"
+            type="number"
+            min="0"
+            max="999999.99"
+            step="0.01"
+            inputmode="decimal"
+            value="<%= values.cost_deplasare %>"
+          >
+        </label>
+
+        <label>
+          Perioadă garanție (luni) <span aria-hidden="true">*</span>
+          <input
+            name="garantie_luni"
+            type="number"
+            min="1"
+            max="60"
+            step="1"
+            inputmode="numeric"
+            value="<%= values.garantie_luni %>"
+            required
+          >
+        </label>
+
+        <label class="appointment-form-full">
+          Condiții comerciale
+          <textarea
+            name="conditii_comerciale"
+            rows="2"
+            maxlength="1000"
+          ><%= values.conditii_comerciale %></textarea>
+        </label>
+      </div>
+    </fieldset>
+
+    <fieldset class="appointment-form-section">
+      <legend>Data și intervalul</legend>
+      <div class="appointment-form-grid">
+        <label>
+          Data programării <span aria-hidden="true">*</span>
+          <input
+            name="data_programare"
+            type="date"
+            value="<%= values.data_programare %>"
+            required
+          >
+        </label>
+
+        <label class="appointment-no-interval">
+          <input
+            name="fara_interval"
+            type="checkbox"
+            value="1"
+            data-no-interval-toggle
+            <%= values.fara_interval ? 'checked' : '' %>
+          >
+          <span>
+            <strong>Nu există interval orar stabilit</strong>
+            <small>Programarea va apărea la finalul zilei.</small>
+          </span>
+        </label>
+
+        <div
+          class="appointment-time-fields appointment-form-full"
+          data-time-fields
+        >
+          <label>
+            Interval — de la <span aria-hidden="true">*</span>
+            <input
+              name="ora_programare"
+              type="time"
+              value="<%= values.ora_programare %>"
+              <%= values.fara_interval ? 'disabled' : 'required' %>
+            >
+          </label>
+
+          <label>
+            Interval — până la <span aria-hidden="true">*</span>
+            <input
+              name="ora_sfarsit"
+              type="time"
+              value="<%= values.ora_sfarsit %>"
+              <%= values.fara_interval ? 'disabled' : 'required' %>
+            >
+          </label>
+        </div>
+      </div>
+    </fieldset>
+
+    <fieldset class="appointment-form-section">
+      <legend>Observații</legend>
+      <label>
+        Observații generale
+        <textarea
+          name="observatii"
+          rows="3"
+        ><%= values.observatii %></textarea>
+      </label>
+    </fieldset>
+
+    <div class="appointment-form-actions">
+      <a class="button ghost" href="<%= listUrl %>">Anulează</a>
+      <button class="button primary" type="submit">
+        <%= isEdit ? 'Salvează modificările' : 'Salvează programarea' %>
+      </button>
+    </div>
+  </form>
+</section>
+
+<template id="appointment-price-row-template">
+  <div class="appointment-price-row" data-price-row>
+    <label>
+      Valoare (lei)
+      <input
+        name="pret_valoare"
+        type="number"
+        min="0"
+        max="999999.99"
+        step="0.01"
+        inputmode="decimal"
+        required
+      >
+    </label>
+    <label>
+      Descriere / condiție
+      <input
+        name="pret_descriere"
+        type="text"
+        maxlength="160"
+      >
+    </label>
+    <button
+      class="button ghost price-remove-button"
+      type="button"
+      data-remove-price
+    >Elimină</button>
+  </div>
+</template>
+
+<%- include('partials/footer') %>

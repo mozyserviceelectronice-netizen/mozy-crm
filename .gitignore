@@ -1,0 +1,101 @@
+# ==================================================
+# SECRETE ȘI CONFIGURĂRI LOCALE
+# ==================================================
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/
+credentials/
+
+# ==================================================
+# DEPENDENȚE
+# ==================================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ==================================================
+# DATE PERSISTENTE / DATE CLIENȚI
+# ==================================================
+data/
+uploads/
+storage/
+
+# ==================================================
+# BACKUPURI ȘI DUMPURI
+# ==================================================
+backups/
+backup/
+*.dump
+*.backup
+*.bak
+
+# Backupuri SQL aflate în rădăcina proiectului
+/backup-*.sql
+/*before*.sql
+/*_before_*.sql
+
+# ==================================================
+# ARHIVE ȘI PACHETE DE INSTALARE
+# ==================================================
+*.tar
+*.tar.gz
+*.tgz
+*.zip
+*.7z
+*.rar
+
+# ==================================================
+# COPII VECHI ALE CODULUI
+# ==================================================
+*.orig
+*.rej
+*.patch
+*.backup-*
+*.before-*
+*.before-*
+*.old
+
+# Modele concrete de copii existente
+src/*.backup*
+src/*.before-*
+public/*.backup*
+public/*.before-*
+
+# ==================================================
+# FIȘIERE TEMPORARE ȘI LOGURI
+# ==================================================
+*.log
+logs/
+tmp/
+temp/
+*.tmp
+*.swp
+*~
+
+# ==================================================
+# EDITOARE ȘI SISTEM
+# ==================================================
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# ==================================================
+# RAPOARTE LOCALE / INSPECȚII
+# ==================================================
+server.js-inspectie.txt
+
+# ==================================================
+# TESTE ȘI COVERAGE GENERAT
+# ==================================================
+coverage/
+.nyc_output/
+
+# Backupuri locale de encoding
+*.encoding-backup

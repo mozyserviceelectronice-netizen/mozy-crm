@@ -1,0 +1,216 @@
+<%
+const numeClient = String(receptie.nume || '').trim() || 'Client';
+const echipament = [
+  receptie.tip_echipament === 'Altul'
+    ? receptie.descriere_echipament
+    : receptie.tip_echipament,
+  receptie.marca,
+  receptie.model
+].filter(Boolean).join(' · ') || 'Echipament neidentificat';
+%>
+<!doctype html>
+<html lang="ro">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Fișă de recepție — Mozy Service</title>
+  <style nonce="<%= cspNonce %>">
+    *{box-sizing:border-box} body{margin:0;background:#f4f7fb;color:#172033;font-family:system-ui,sans-serif}
+    main{max-width:920px;margin:0 auto;padding:24px 16px 48px}
+    header,section{background:#fff;border:1px solid #dbe3ef;border-radius:16px;padding:22px;margin-bottom:16px;box-shadow:0 8px 28px rgba(16,24,40,.06)}
+    h1,h2{margin-top:0} h1{font-size:28px} h2{font-size:20px}
+    .muted{color:#667085}.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px 24px}
+    dl{margin:0} dt{font-size:12px;font-weight:700;color:#667085;text-transform:uppercase;margin-top:12px} dd{margin:4px 0 0;white-space:pre-wrap}
+    .legal{max-height:360px;overflow:auto;white-space:pre-wrap;background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:16px;line-height:1.55;font-family:inherit;font-size:14px}
+    .notice{padding:14px;border-radius:10px;background:#eef4ff;color:#1d4f91;line-height:1.5}
+    .error{padding:14px;border-radius:10px;background:#fff1f0;color:#9f1c14;border:1px solid #ffc9c4;margin-bottom:16px}
+    .confirm{display:flex;gap:10px;align-items:flex-start;margin:14px 0;line-height:1.45}
+    .confirm input{width:20px;height:20px;flex:0 0 auto;margin-top:1px}
+    .signature-box{border:2px solid #98a2b3;border-radius:12px;background:#fff;overflow:hidden}
+    #signature-canvas{display:block;width:100%;height:auto;touch-action:none;cursor:crosshair}
+    .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
+    button{border:0;border-radius:10px;padding:12px 18px;font:inherit;font-weight:700;cursor:pointer}
+    .primary{background:#175cd3;color:#fff}.secondary{background:#eaecf0;color:#344054}
+    button:disabled{opacity:.55;cursor:not-allowed}
+    @media(max-width:650px){.grid{grid-template-columns:1fr}h1{font-size:23px}header,section{padding:17px}}
+  </style>
+  <meta name="csrf-token" content="<%= csrfToken %>">
+</head>
+<body>
+  <main>
+    <% if (receptie.este_test) { %>
+      <div class="error">
+        <strong>DOCUMENT DE TEST – FĂRĂ VALOARE</strong>
+      </div>
+    <% } %>
+    <header>
+      <p class="muted">Mozy Service Electronice</p>
+      <h1>Fișă de recepție <%= receptie.numar_receptie %></h1>
+      <p class="muted">Data primirii: <%= receptie.data_primire_afisata %></p>
+    </header>
+
+    <section>
+      <h2>Datele recepției</h2>
+      <div class="grid">
+        <dl>
+          <dt>Client</dt><dd><%= numeClient %></dd>
+          <dt>Telefon</dt><dd><%= receptie.telefon || '—' %></dd>
+        </dl>
+        <dl>
+          <dt>Echipament</dt><dd><%= echipament %></dd>
+          <dt>Serie</dt><dd><%= receptie.serie || '—' %></dd>
+        </dl>
+        <dl>
+          <dt>Defect reclamat</dt><dd><%= receptie.defect_reclamat || '—' %></dd>
+          <dt>Stare la primire</dt><dd><%= receptie.stare_la_primire || '—' %></dd>
+        </dl>
+        <dl>
+          <dt>Accesorii</dt>
+          <dd><%= receptie.are_accesorii
+            ? (receptie.accesorii || 'Accesorii predate')
+            : 'Nu au fost predate accesorii' %></dd>
+        </dl>
+      </div>
+    </section>
+
+    <section>
+      <h2>Termeni și condiții</h2>
+      <div class="legal"><%= receptie.termeni_text %></div>
+    </section>
+
+    <section>
+      <h2>Informare privind datele personale</h2>
+      <div class="legal"><%= receptie.informare_gdpr_text %></div>
+    </section>
+
+    <section>
+      <h2>Acceptare și semnătură</h2>
+
+      <% if (error) { %>
+        <div class="error"><%= error %></div>
+      <% } %>
+
+      <form id="signing-form" method="post" action="" autocomplete="off">
+        <label class="confirm">
+          <input type="checkbox" name="termeni_acceptati" required>
+          <span>
+            Am citit și accept integral termenii și condițiile de service
+            afișați mai sus.
+          </span>
+        </label>
+
+        <label class="confirm">
+          <input type="checkbox" name="informare_gdpr_confirmata" required>
+          <span>
+            Confirm că am primit și am citit informarea privind
+            prelucrarea datelor cu caracter personal.
+          </span>
+        </label>
+
+        <p class="muted">
+          Semnează în chenar cu degetul, mouse-ul sau un stylus.
+          Prin trimitere confirmi că semnătura îți aparține și că datele
+          fișei sunt corecte.
+        </p>
+
+        <div class="signature-box">
+          <canvas
+            id="signature-canvas"
+            width="900"
+            height="320"
+            aria-label="Câmp pentru semnătură"
+          ></canvas>
+        </div>
+
+        <input id="signature-data" type="hidden" name="semnatura_data">
+
+        <div class="actions">
+          <button class="secondary" id="clear-signature" type="button">
+            Șterge semnătura
+          </button>
+          <button class="primary" id="submit-signature" type="submit">
+            Accept și semnez fișa
+          </button>
+        </div>
+      </form>
+    </section>
+  </main>
+
+  <script nonce="<%= cspNonce %>">
+    (() => {
+      const form = document.getElementById('signing-form');
+      const canvas = document.getElementById('signature-canvas');
+      const context = canvas.getContext('2d');
+      const hidden = document.getElementById('signature-data');
+      const clearButton = document.getElementById('clear-signature');
+      const submitButton = document.getElementById('submit-signature');
+      let drawing = false;
+      let hasStroke = false;
+
+      form.action = window.location.pathname;
+      context.lineWidth = 4;
+      context.lineCap = 'round';
+      context.lineJoin = 'round';
+      context.strokeStyle = '#101828';
+
+      function point(event) {
+        const rect = canvas.getBoundingClientRect();
+        return {
+          x: (event.clientX - rect.left) * canvas.width / rect.width,
+          y: (event.clientY - rect.top) * canvas.height / rect.height
+        };
+      }
+
+      canvas.addEventListener('pointerdown', event => {
+        event.preventDefault();
+        drawing = true;
+        canvas.setPointerCapture(event.pointerId);
+        const current = point(event);
+        context.beginPath();
+        context.moveTo(current.x, current.y);
+      });
+
+      canvas.addEventListener('pointermove', event => {
+        if (!drawing) return;
+        event.preventDefault();
+        const current = point(event);
+        context.lineTo(current.x, current.y);
+        context.stroke();
+        hasStroke = true;
+      });
+
+      function stopDrawing(event) {
+        if (!drawing) return;
+        drawing = false;
+        context.closePath();
+        if (event.pointerId !== undefined && canvas.hasPointerCapture(event.pointerId)) {
+          canvas.releasePointerCapture(event.pointerId);
+        }
+      }
+
+      canvas.addEventListener('pointerup', stopDrawing);
+      canvas.addEventListener('pointercancel', stopDrawing);
+
+      clearButton.addEventListener('click', () => {
+        context.clearRect(0, 0, canvas.width, canvas.height);
+        hidden.value = '';
+        hasStroke = false;
+      });
+
+      form.addEventListener('submit', event => {
+        if (!hasStroke) {
+          event.preventDefault();
+          window.alert('Semnează în chenar înainte de trimitere.');
+          return;
+        }
+
+        hidden.value = canvas.toDataURL('image/png');
+        submitButton.disabled = true;
+        submitButton.textContent = 'Se înregistrează…';
+      });
+    })();
+  </script>
+  <script src="/app.js" defer></script>
+</body>
+</html>

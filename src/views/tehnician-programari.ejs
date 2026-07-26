@@ -1,0 +1,571 @@
+<%
+  const typeQuery = selectedType
+    ? `&tip=${encodeURIComponent(selectedType)}`
+    : '';
+%>
+<%- include('partials/header', {
+  title: 'Programări tehnician - Mozy CRM',
+  active
+}) %>
+
+<nav class="technician-tabs" aria-label="Secțiuni tehnician">
+  <a href="/teren">Teren</a>
+  <a class="active" href="/tehnician/programari">Programări</a>
+</nav>
+
+<div class="page-heading daily-schedule-heading">
+  <div>
+    <span class="eyebrow">Planificare deplasări</span>
+    <h1>Programări tehnician</h1>
+  </div>
+  <div class="daily-schedule-heading-actions">
+    <button
+      class="button schedule-send-button"
+      type="button"
+      data-open-schedule-modal
+      data-date="<%= selectedDate %>"
+      data-type="<%= selectedType %>"
+    >
+      Trimite programul zilei
+    </button>
+    <a
+      class="button primary"
+      href="/tehnician/programari/noua?data=<%= selectedDate %>"
+    >
+      Programare nouă
+    </a>
+  </div>
+</div>
+
+<% if (created) { %>
+  <div class="reception-message success" role="status">
+    Programarea a fost salvată.
+  </div>
+<% } %>
+<% if (updated) { %>
+  <div class="reception-message success" role="status">
+    Programarea a fost actualizată.
+  </div>
+<% } %>
+<% if (deleted) { %>
+  <div class="reception-message success" role="status">
+    Programarea a fost ștearsă.
+  </div>
+<% } %>
+
+<section class="panel technician-calendar-panel">
+  <div class="technician-calendar-heading">
+    <a
+      class="button ghost"
+      href="/tehnician/programari?data=<%= previousMonth %><%= typeQuery %>"
+      aria-label="Luna anterioară"
+    >‹</a>
+    <h2><%= monthLabel %></h2>
+    <a
+      class="button ghost"
+      href="/tehnician/programari?data=<%= nextMonth %><%= typeQuery %>"
+      aria-label="Luna următoare"
+    >›</a>
+  </div>
+
+  <div class="technician-calendar-weekdays" aria-hidden="true">
+    <% ['L', 'Ma', 'Mi', 'J', 'V', 'S', 'D'].forEach(day => { %>
+      <span><%= day %></span>
+    <% }) %>
+  </div>
+
+  <div class="technician-calendar-grid">
+    <% calendarDays.forEach(day => { %>
+      <% if (!day) { %>
+        <span class="calendar-day empty-day"></span>
+      <% } else { %>
+        <a
+          class="calendar-day<%= day.selected ? ' selected' : '' %><%= day.today ? ' today' : '' %>"
+          href="/tehnician/programari?data=<%= day.date %><%= typeQuery %>"
+          aria-label="<%= day.date %>, <%= day.count %> programări"
+        >
+          <strong><%= day.day %></strong>
+          <% if (day.count) { %>
+            <span><%= day.count %></span>
+          <% } %>
+        </a>
+      <% } %>
+    <% }) %>
+  </div>
+</section>
+
+<section class="panel technician-day-panel">
+  <div class="daily-schedule-toolbar">
+    <div class="technician-day-heading">
+      <div>
+        <span class="eyebrow">Lista zilei</span>
+        <h2><%= selectedDate.split('-').reverse().join('.') %></h2>
+        <small>
+          <%= appointments.length %>
+          <%= appointments.length === 1 ? 'programare afișată' : 'programări afișate' %>
+        </small>
+      </div>
+      <div class="technician-day-navigation">
+        <a
+          class="button ghost"
+          href="/tehnician/programari?data=<%= previousDay %><%= typeQuery %>"
+        >Ziua anterioară</a>
+        <% if (selectedDate !== today) { %>
+          <a
+            class="button ghost"
+            href="/tehnician/programari?data=<%= today %><%= typeQuery %>"
+          >Astăzi</a>
+        <% } %>
+        <a
+          class="button ghost"
+          href="/tehnician/programari?data=<%= nextDay %><%= typeQuery %>"
+        >Ziua următoare</a>
+      </div>
+    </div>
+
+    <form class="technician-type-filter" method="get">
+      <input type="hidden" name="data" value="<%= selectedDate %>">
+      <label for="appointment-type-filter">Tip deplasare</label>
+      <select id="appointment-type-filter" name="tip">
+        <option value="">Toate</option>
+        <% Object.entries(travelTypes).forEach(([value, label]) => { %>
+          <option
+            value="<%= value %>"
+            <%= selectedType === value ? 'selected' : '' %>
+          ><%= label %></option>
+        <% }) %>
+      </select>
+      <button class="button ghost" type="submit">Filtrează</button>
+    </form>
+  </div>
+
+  <% if (!appointments.length) { %>
+    <div class="appointment-empty-state">
+      <strong>Nu există programări pentru această selecție.</strong>
+      <span>Schimbă data sau filtrul ori adaugă o programare nouă.</span>
+    </div>
+  <% } %>
+
+  <div class="technician-appointment-list">
+    <% appointments.forEach(row => { %>
+      <article class="appointment-card technician-appointment-card">
+        <header class="appointment-header">
+          <div class="appointment-header-main">
+            <strong class="appointment-time">
+              <% if (row.fara_interval) { %>
+                Fără interval
+              <% } else { %>
+                <%= String(row.ora_programare).slice(0, 5) %>–<%= String(row.ora_sfarsit).slice(0, 5) %>
+              <% } %>
+            </strong>
+            <span class="travel-type travel-<%= row.tip_deplasare %>">
+              <%= travelTypes[row.tip_deplasare] %>
+            </span>
+          </div>
+          <div class="appointment-meta">
+            <span class="appointment-technician">
+              <%= row.tehnician_display %>
+            </span>
+            <span class="appointment-status status-<%= row.status %>">
+              <%= statusLabels[row.status] || row.status %>
+            </span>
+          </div>
+        </header>
+
+        <div class="appointment-grid">
+          <section class="appointment-section">
+            <small>Client</small>
+            <strong>
+              <%= String(row.nume || '').trim() || 'Client fără nume' %>
+            </strong>
+            <a href="<%= row.phoneHref %>"><%= row.telefon %></a>
+            <span><%= row.adresa %>, <%= row.oras %></span>
+          </section>
+
+          <section class="appointment-section">
+            <small>Echipament</small>
+            <strong>
+              <%= [row.marca, row.model].filter(Boolean).join(' ') %>
+            </strong>
+            <span><%= row.defect_reclamat %></span>
+          </section>
+
+          <section class="appointment-section appointment-commercial">
+            <small>Comercial</small>
+            <ul class="appointment-price-list">
+              <%
+                const displayPrices = row.preturi.length
+                  ? row.preturi
+                  : [{
+                      valoare: row.pret_reparatie,
+                      descriere: null
+                    }];
+                displayPrices.forEach(price => {
+              %>
+                <li>
+                  <strong>
+                    <%= Number(price.valoare).toLocaleString('ro-RO', {
+                      maximumFractionDigits: 2
+                    }) %> lei
+                  </strong>
+                  <% if (price.descriere) { %>
+                    <span>— <%= price.descriere %></span>
+                  <% } %>
+                </li>
+              <% }) %>
+            </ul>
+            <% if (row.cost_deplasare !== null && Number(row.cost_deplasare) > 0) { %>
+              <span>
+                Deplasare:
+                <strong><%= Number(row.cost_deplasare).toLocaleString('ro-RO', {
+                  maximumFractionDigits: 2
+                }) %> lei</strong>
+              </span>
+            <% } %>
+            <span>Garanție: <%= row.garantie_luni %> luni</span>
+            <% if (row.conditii_comerciale) { %>
+              <span><%= row.conditii_comerciale %></span>
+            <% } %>
+          </section>
+        </div>
+
+        <% if (row.observatii) { %>
+          <div class="appointment-existing-notes">
+            <small>Observații</small>
+            <p><%= row.observatii %></p>
+          </div>
+        <% } %>
+
+        <div class="appointment-actions appointment-contact-actions">
+          <span class="appointment-action-label">Acțiuni rapide</span>
+          <a class="button primary" href="<%= row.phoneHref %>">
+            Sună
+          </a>
+          <a
+            class="button ghost"
+            href="<%= row.mapsUrl %>"
+            target="_blank"
+            rel="noopener noreferrer"
+          >Google Maps</a>
+          <a
+            class="button ghost"
+            href="<%= row.wazeUrl %>"
+            target="_blank"
+            rel="noopener noreferrer"
+          >Waze</a>
+        </div>
+
+        <form
+          class="appointment-result-form"
+          method="post"
+          action="/tehnician/programari/<%= row.id %>/status"
+        >
+          <input type="hidden" name="tip" value="<%= selectedType %>">
+          <label for="notes-<%= row.id %>">Observații tehnician</label>
+          <textarea
+            id="notes-<%= row.id %>"
+            name="observatii"
+            rows="2"
+            placeholder="Observații despre vizită"
+          ></textarea>
+          <div class="appointment-result-actions">
+            <span class="appointment-action-label">Rezultat vizită</span>
+            <button
+              class="button success"
+              type="submit"
+              name="status"
+              value="reparat"
+            >Reparat</button>
+            <button
+              class="button ghost"
+              type="submit"
+              name="status"
+              value="nu_a_raspuns"
+            >Nu a răspuns</button>
+            <button
+              class="button danger"
+              type="submit"
+              name="status"
+              value="nu_s_a_putut_repara"
+            >Nu s-a putut repara</button>
+          </div>
+        </form>
+
+        <details class="appointment-more">
+          <summary>Mai multe acțiuni</summary>
+          <div class="appointment-more-content">
+            <a
+              class="button ghost"
+              href="/tehnician/programari/<%= row.id %>/editeaza"
+            >Editează programarea</a>
+
+            <details class="appointment-postpone">
+              <summary>Amână programarea</summary>
+              <form
+                method="post"
+                action="/tehnician/programari/<%= row.id %>/amana"
+                data-postpone-form
+              >
+                <input
+                  type="hidden"
+                  name="tip"
+                  value="<%= selectedType %>"
+                >
+                <label>
+                  Noua dată
+                  <input
+                    name="data_noua"
+                    type="date"
+                    min="<%= today %>"
+                    required
+                  >
+                </label>
+                <label class="appointment-no-interval compact">
+                  <input
+                    name="fara_interval_nou"
+                    type="checkbox"
+                    value="1"
+                    data-no-interval-toggle
+                  >
+                  <span>Fără interval orar</span>
+                </label>
+                <div
+                  class="appointment-time-fields"
+                  data-time-fields
+                >
+                  <label>
+                    De la
+                    <input
+                      name="ora_inceput_noua"
+                      type="time"
+                      required
+                    >
+                  </label>
+                  <label>
+                    Până la
+                    <input
+                      name="ora_sfarsit_noua"
+                      type="time"
+                      required
+                    >
+                  </label>
+                </div>
+                <label class="postpone-notes">
+                  Motiv / observații
+                  <textarea
+                    name="observatii_amanare"
+                    rows="2"
+                  ></textarea>
+                </label>
+                <button class="button ghost" type="submit">
+                  Confirmă amânarea
+                </button>
+              </form>
+            </details>
+
+            <form
+              class="appointment-delete-form"
+              method="post"
+              action="/tehnician/programari/<%= row.id %>/sterge"
+              data-confirm="Sigur vrei să ștergi definitiv această programare?"
+            >
+              <input
+                type="hidden"
+                name="tip"
+                value="<%= selectedType %>"
+              >
+              <button class="button danger" type="submit">
+                Șterge programarea
+              </button>
+            </form>
+          </div>
+        </details>
+      </article>
+    <% }) %>
+  </div>
+</section>
+
+<section class="panel schedule-send-history">
+  <details>
+    <summary>
+      Istoric trimiteri WhatsApp
+      <span><%= sendHistory.length %> operațiuni recente</span>
+    </summary>
+    <div class="send-history-list">
+      <% if (!sendHistory.length) { %>
+        <p class="empty">Nu există încă trimiteri înregistrate.</p>
+      <% } %>
+      <% sendHistory.forEach(operation => { %>
+        <article class="send-history-operation">
+          <header>
+            <div>
+              <strong>
+                Program <%= String(operation.data_program).slice(0, 10).split('-').reverse().join('.') %>
+              </strong>
+              <span>
+                Inițiat de <%= operation.initiator_display %>
+                · <%= operation.numar_programari %> programări
+                <% if (operation.dry_run) { %>· Test<% } %>
+              </span>
+            </div>
+            <span class="send-operation-status send-<%= operation.status %>">
+              <%= operation.status %>
+            </span>
+          </header>
+          <ul class="send-result-list">
+            <% operation.recipients.forEach(recipient => { %>
+              <li class="send-result-<%= recipient.status %>">
+                <div>
+                  <strong>
+                    <%= recipient.membru_nume %> —
+                    <%= recipient.numar_mascat %>
+                  </strong>
+                  <span>
+                    <%= recipient.status %>
+                    · <%= recipient.numar_incercari %>
+                    <%= recipient.numar_incercari === 1 ? 'încercare' : 'încercări' %>
+                  </span>
+                  <% if (recipient.eroare_sigura) { %>
+                    <small><%= recipient.eroare_sigura %></small>
+                  <% } %>
+                </div>
+              </li>
+            <% }) %>
+          </ul>
+          <% if (
+            Number(operation.initiat_de_user_id) === Number(user.id) &&
+            operation.recipients.some(recipient => recipient.status === 'esuat')
+          ) { %>
+            <button
+              class="button ghost"
+              type="button"
+              data-retry-operation="<%= operation.id %>"
+            >
+              Reîncearcă doar mesajele eșuate
+            </button>
+          <% } %>
+        </article>
+      <% }) %>
+    </div>
+  </details>
+</section>
+
+<div
+  class="send-schedule-modal"
+  data-schedule-modal
+  hidden
+>
+  <button
+    class="send-schedule-backdrop"
+    type="button"
+    aria-label="Închide confirmarea"
+    data-close-schedule-modal
+  ></button>
+  <section
+    class="send-schedule-dialog"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="send-schedule-title"
+    tabindex="-1"
+  >
+    <header>
+      <div>
+        <span class="eyebrow">Confirmare WhatsApp</span>
+        <h2 id="send-schedule-title">Trimite programul zilei</h2>
+      </div>
+      <button
+        class="modal-close-button"
+        type="button"
+        aria-label="Închide"
+        data-close-schedule-modal
+      >×</button>
+    </header>
+
+    <div class="send-schedule-content">
+      <div class="send-schedule-summary" data-send-summary>
+        <p>Se încarcă programul actualizat…</p>
+      </div>
+
+      <section
+        class="send-recipient-selector"
+        data-recipient-selector
+        hidden
+      >
+        <h3>Selectează destinatarii autorizați</h3>
+        <p>
+          Contul autentificat nu este asociat automat unui membru al
+          echipei. Confirmă explicit destinatarii.
+        </p>
+        <div data-recipient-options></div>
+      </section>
+
+      <section class="send-appointment-selector">
+        <div class="send-selector-heading">
+          <div>
+            <h3>Programări incluse</h3>
+            <p>Implicit este selectat programul complet al zilei.</p>
+          </div>
+          <label class="send-filter-option">
+            <input
+              type="checkbox"
+              data-send-current-filter
+              <%= selectedType ? '' : 'disabled' %>
+            >
+            <span>
+              Trimite doar programările din filtrul curent
+              <% if (selectedType) { %>
+                (<%= travelTypes[selectedType] %>)
+              <% } %>
+            </span>
+          </label>
+        </div>
+        <div
+          class="send-appointment-options"
+          data-send-appointment-options
+        ></div>
+      </section>
+
+      <section class="send-preview-section">
+        <div>
+          <h3>Previzualizare mesaj</h3>
+          <a
+            href="#"
+            target="_blank"
+            rel="noopener noreferrer"
+            data-send-crm-link
+          >Deschide linkul CRM</a>
+        </div>
+        <pre data-send-message-preview></pre>
+      </section>
+
+      <div
+        class="send-schedule-error"
+        data-send-error
+        role="alert"
+        hidden
+      ></div>
+
+      <div
+        class="send-result-panel"
+        data-send-results
+        aria-live="polite"
+        hidden
+      ></div>
+    </div>
+
+    <footer>
+      <button
+        class="button ghost"
+        type="button"
+        data-close-schedule-modal
+      >Anulează</button>
+      <button
+        class="button primary"
+        type="button"
+        data-send-schedule-now
+      >Trimite acum</button>
+    </footer>
+  </section>
+</div>
+
+<%- include('partials/footer') %>

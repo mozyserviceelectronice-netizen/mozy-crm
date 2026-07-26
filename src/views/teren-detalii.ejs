@@ -1,0 +1,441 @@
+<%
+const statusLabels = {
+  asteapta_semnare: 'Așteaptă semnare',
+  semnat: 'Semnat',
+  finalizat: 'Finalizat',
+  anulat: 'Anulat'
+};
+const testLabels = {
+  functional: 'Probat în prezența clientului — funcțional',
+  nereparat: 'Probat în prezența clientului — nereparat',
+  refuz_client: 'Clientul a refuzat proba',
+  imposibil: 'Proba nu a fost posibilă'
+};
+const equipment = [
+  field.tip_echipament === 'Altul'
+    ? field.descriere_echipament
+    : field.tip_echipament,
+  field.marca,
+  field.model
+].filter(Boolean).join(' · ') || 'Echipament neidentificat';
+%>
+
+<%- include('partials/header', {
+  title: `${field.numar_interventie} - Mozy CRM`,
+  active
+}) %>
+
+<div class="page-heading">
+  <div>
+    <span class="eyebrow">
+      <%= operationLabels[field.tip_operatiune] %>
+    </span>
+    <h1><%= field.numar_interventie %></h1>
+  </div>
+  <span class="badge field-<%= field.status %>">
+    <%= statusLabels[field.status] || field.status %>
+  </span>
+</div>
+
+<% if (field.este_test) { %>
+  <div class="test-mode-banner">
+    <strong>DOCUMENT DE TEST – FĂRĂ VALOARE</strong>
+    <span>
+      Fluxul este complet funcțional. Ștergerea testului elimină
+      intervenția și toate înregistrările TEST asociate.
+    </span>
+  </div>
+<% } %>
+
+<% if (created) { %>
+  <div class="reception-message success">
+    Operațiunea a fost creată.
+    <% if (field.receptie_id) { %>
+      Fișa din „Recepție atelier” a fost deschisă automat.
+    <% } %>
+  </div>
+<% } %>
+
+<% if (whatsapp === 'trimis') { %>
+  <div class="reception-message success">
+    Linkul de semnare a fost trimis clientului pe WhatsApp.
+  </div>
+<% } else if (whatsapp === 'eroare') { %>
+  <div class="reception-message error">
+    Operațiunea a fost salvată, dar linkul nu a putut fi trimis pe WhatsApp.
+    Îl poți retrimite.
+  </div>
+<% } %>
+
+<section class="field-command-center" aria-label="Acțiuni operațiune teren">
+  <div class="field-command-heading">
+    <div>
+      <h2>Acțiuni operațiune</h2>
+      <p>Acces rapid la fișă, documente și eticheta echipamentului.</p>
+    </div>
+  </div>
+
+  <div class="field-action-section">
+    <span class="field-action-label">Navigare</span>
+    <div class="field-action-grid field-navigation-actions">
+      <a
+        class="button ghost field-back-button"
+        href="<%= field.context_operatiune === 'atelier' && field.receptie_id
+          ? `/receptie/${field.receptie_id}`
+          : '/teren'
+        %>"
+      >
+        <span aria-hidden="true">&larr;</span>
+        Înapoi la operațiuni
+      </a>
+
+      <% if (field.receptie_id) { %>
+        <a class="button" href="/receptie/<%= field.receptie_id %>">
+          Deschide fișa atelier
+        </a>
+      <% } %>
+    </div>
+  </div>
+
+  <div class="field-action-section">
+    <span class="field-action-label">Documente și comunicare</span>
+    <div class="field-action-grid">
+      <% if (
+        field.status === 'asteapta_semnare' &&
+        field.tip_operatiune !== 'reparat_domiciliu'
+      ) { %>
+        <form method="post" action="/teren/<%= field.id %>/link-semnare">
+          <button class="button primary" type="submit">
+            Retrimite linkul de semnare
+          </button>
+        </form>
+      <% } %>
+
+      <% if (field.status === 'semnat' && field.pdf_path) { %>
+        <a
+          class="button primary"
+          href="/teren/<%= field.id %>/pdf"
+          target="_blank"
+          rel="noopener"
+        >
+          Vezi PV semnat
+        </a>
+        <a class="button ghost" href="/teren/<%= field.id %>/pdf?download=1">
+          Descarcă PV
+        </a>
+      <% } %>
+
+      <% if (
+        field.tip_operatiune === 'ridicare' &&
+        field.status === 'semnat'
+      ) { %>
+        <a
+          class="button primary"
+          href="/teren/<%= field.id %>/eticheta"
+          target="_blank"
+          rel="noopener"
+        >
+          Tipărește eticheta TV
+        </a>
+      <% } %>
+
+      <% if (
+        field.fisa_service_id &&
+        (
+          field.tip_operatiune === 'reparat_domiciliu' ||
+          field.tip_operatiune === 'predare_reparat'
+        )
+      ) { %>
+        <a
+          class="button primary"
+          href="/fise/<%= field.fisa_service_id %>/garantie"
+        >
+          Generează garanție
+        </a>
+      <% } %>
+    </div>
+  </div>
+
+  <% if (field.este_test) { %>
+    <div class="field-action-section field-admin-section">
+      <span class="field-action-label">Administrare test</span>
+      <div class="field-action-grid field-admin-actions">
+        <form
+          method="post"
+          action="/teste/teren/<%= field.id %>/sterge"
+          data-confirm="Ștergi întregul test, inclusiv recepția, semnăturile, PDF-urile, fotografiile și garanțiile?"
+        >
+          <button class="button danger" type="submit">
+            Șterge testul
+          </button>
+        </form>
+      </div>
+    </div>
+  <% } %>
+</section>
+
+<div class="two-columns detail-grid">
+  <section class="panel">
+    <h2>Client</h2>
+    <dl>
+      <dt>Nume</dt>
+      <dd><%= String(field.nume || '').trim() || 'Client fără nume' %></dd>
+      <dt>Telefon</dt>
+      <dd><%= field.telefon || '—' %></dd>
+      <dt>Adresă</dt>
+      <dd><%= field.adresa_interventie || field.adresa_client || '—' %></dd>
+      <dt>Tehnician</dt>
+      <dd><%= field.tehnician_cod %></dd>
+    </dl>
+  </section>
+
+  <section class="panel">
+    <h2>Echipament</h2>
+    <dl>
+      <dt>Tip / marcă / model</dt>
+      <dd><%= equipment %></dd>
+      <dt>Serie</dt>
+      <dd><%= field.serie || '—' %></dd>
+      <dt>Preț estimat reparație</dt>
+      <dd>
+        <%= field.pret_estimat_reparatie != null
+          ? `${field.pret_estimat_reparatie} lei`
+          : '—'
+        %>
+      </dd>
+      <dt>Fișă atelier</dt>
+      <dd><%= field.numar_receptie || 'Nu se aplică' %></dd>
+    </dl>
+  </section>
+
+  <section class="panel full-width">
+    <h2>Detalii</h2>
+    <dl>
+      <dt>Defect reclamat</dt>
+      <dd><%= field.defect_reclamat || '—' %></dd>
+      <dt>Constatarea tehnicianului</dt>
+      <dd><%= field.constatare_tehnician || '—' %></dd>
+      <dt>Intervenția efectuată</dt>
+      <dd><%= field.interventie_efectuata || '—' %></dd>
+      <dt>Accesorii</dt>
+      <dd>
+        <%= field.are_accesorii
+          ? (field.accesorii || 'Accesorii predate')
+          : 'Nu are accesorii'
+        %>
+      </dd>
+      <% if (field.tip_operatiune === 'ridicare') { %>
+        <dt>Ambalat de client</dt>
+        <dd><%= field.ambalat_de_client === true
+          ? 'Da'
+          : field.ambalat_de_client === false
+            ? 'Nu'
+            : 'Nespecificat'
+        %></dd>
+        <% if (field.ambalat_de_client === true) { %>
+          <dt>Starea ambalării</dt>
+          <dd><%= field.stare_ambalaj === 'corespunzator'
+            ? 'Corespunzătoare'
+            : 'Insuficientă'
+          %></dd>
+        <% } %>
+      <% } %>
+      <dt>Rezultatul probei</dt>
+      <dd><%= testLabels[field.rezultat_proba] || '—' %></dd>
+      <dt>Motiv / observații probă</dt>
+      <dd><%= field.motiv_proba || '—' %></dd>
+      <dt>Preț reparație</dt>
+      <dd>
+        <%= field.pret_lucrare ?? '—' %> lei
+        <%= field.metoda_plata ? `· ${field.metoda_plata}` : '' %>
+      </dd>
+      <dt>Observații interne</dt>
+      <dd><%= field.observatii_interne || '—' %></dd>
+    </dl>
+  </section>
+</div>
+
+<% if (field.tip_operatiune === 'ridicare') { %>
+  <section class="panel reception-photos" id="fotografii">
+    <div class="reception-photos-heading">
+      <div>
+        <h2>Fotografii la ridicare</h2>
+        <p>
+          Recomandat: față, spate, etichetă/model și deteriorări existente.
+          Maximum 20 de fotografii.
+        </p>
+      </div>
+      <div class="reception-photo-picker-group">
+        <label class="button primary reception-photo-picker">
+          Fă fotografie
+          <input
+            id="field-photo-camera"
+            type="file"
+            accept="image/*"
+            capture="environment"
+          >
+        </label>
+        <label class="button reception-photo-picker">
+          Alege fotografii
+          <input
+            id="field-photo-gallery"
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
+            multiple
+          >
+        </label>
+      </div>
+    </div>
+
+    <div
+      id="reception-photo-progress"
+      class="reception-photo-progress"
+      role="status"
+      aria-live="polite"
+    ></div>
+
+    <% if (photoError) { %>
+      <div class="reception-message error"><%= photoError %></div>
+    <% } %>
+
+    <% if (fotografii.length) { %>
+      <div class="reception-photo-grid">
+        <% fotografii.forEach(photo => { %>
+          <article class="reception-photo-card">
+            <a
+              href="/teren/<%= field.id %>/fotografii/<%= photo.id %>"
+              target="_blank"
+              rel="noopener"
+            >
+              <img
+                src="/teren/<%= field.id %>/fotografii/<%= photo.id %>"
+                alt="Fotografie atașată la <%= field.numar_interventie %>"
+                loading="lazy"
+              >
+            </a>
+            <div class="reception-photo-meta">
+              <strong><%= photo.nume_original %></strong>
+              <small>
+                <%= photo.latime %>×<%= photo.inaltime %> ·
+                <%= Math.max(1, Math.round(photo.dimensiune_bytes / 1024)) %> KB ·
+                <%= new Date(photo.created_at).toLocaleString('ro-RO', {
+                  timeZone: 'Europe/Bucharest'
+                }) %>
+              </small>
+              <form
+                method="post"
+                action="/teren/<%= field.id %>/fotografii/<%= photo.id %>/sterge"
+                data-confirm="Ștergi această fotografie?"
+              >
+                <button class="button danger small" type="submit">
+                  Șterge
+                </button>
+              </form>
+            </div>
+          </article>
+        <% }) %>
+      </div>
+    <% } else { %>
+      <p class="empty-state">Nu sunt încă fotografii atașate.</p>
+    <% } %>
+  </section>
+
+  <script nonce="<%= cspNonce %>">
+    (() => {
+      const camera = document.getElementById('field-photo-camera');
+      const gallery = document.getElementById('field-photo-gallery');
+      const progress = document.getElementById('reception-photo-progress');
+      const endpoint = '/teren/<%= field.id %>/fotografii';
+      const csrfToken = document
+        .querySelector('meta[name="csrf-token"]')
+        ?.getAttribute('content') || '';
+
+      async function upload(files) {
+        const selected = Array.from(files || []);
+        if (!selected.length) return;
+
+        progress.classList.remove('error');
+
+        for (let index = 0; index < selected.length; index += 1) {
+          const file = selected[index];
+          progress.textContent =
+            `Se încarcă fotografia ${index + 1} din ${selected.length}…`;
+
+          try {
+            const response = await fetch(endpoint, {
+              method: 'POST',
+              headers: {
+                'Content-Type': file.type || 'application/octet-stream',
+                'X-File-Name': encodeURIComponent(file.name || 'fotografie'),
+                'X-CSRF-Token': csrfToken
+              },
+              body: file
+            });
+            const payload = await response.json().catch(() => ({}));
+
+            if (!response.ok) {
+              throw new Error(payload.error || 'Încărcarea a eșuat.');
+            }
+          } catch (error) {
+            progress.classList.add('error');
+            progress.textContent = error.message;
+            return;
+          }
+        }
+
+        progress.textContent = 'Fotografiile au fost comprimate și salvate.';
+        window.location.hash = 'fotografii';
+        window.location.reload();
+      }
+
+      camera.addEventListener('change', event => upload(event.target.files));
+      gallery.addEventListener('change', event => upload(event.target.files));
+    })();
+  </script>
+<% } %>
+
+<section class="panel signed-documents" id="procese-verbale">
+  <div class="panel-title">
+    <div>
+      <h2>Procese-verbale semnate</h2>
+      <p>Toate documentele semnate asociate acestei fișe.</p>
+    </div>
+  </div>
+
+  <% if (!documenteSemnate || !documenteSemnate.length) { %>
+    <p class="empty-state">Nu există încă procese-verbale semnate.</p>
+  <% } else { %>
+    <div class="signed-document-list">
+      <% documenteSemnate.forEach(document => { %>
+        <article class="signed-document-row">
+          <div>
+            <strong><%= document.denumire %></strong>
+            <small>
+              <%= document.numar_document || 'Fără număr' %>
+              <% if (document.semnat_la) { %>
+                &middot;
+                <%= new Date(document.semnat_la).toLocaleString('ro-RO', {
+                  timeZone: 'Europe/Bucharest'
+                }) %>
+              <% } %>
+            </small>
+          </div>
+          <div class="page-actions">
+            <a
+              class="button primary compact"
+              href="<%= document.url %>"
+              target="_blank"
+              rel="noopener"
+            >Vezi PDF</a>
+            <a
+              class="button ghost compact"
+              href="<%= document.url %>?download=1"
+            >Descarcă</a>
+          </div>
+        </article>
+      <% }) %>
+    </div>
+  <% } %>
+</section>
+
+<%- include('partials/footer') %>

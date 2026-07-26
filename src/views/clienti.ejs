@@ -1,0 +1,6 @@
+<%- include('partials/header', { title: 'Clienți — Mozy CRM', active }) %>
+<div class="page-heading"><div><span class="eyebrow">Bază de date</span><h1>Clienți</h1></div></div>
+<form class="filters" method="get"><input name="q" value="<%= search %>" placeholder="Nume, telefon sau email…"><button class="button primary">Caută</button><a class="button ghost" href="/clienti">Resetează</a></form>
+<section class="panel table-wrap"><table><thead><tr><th>ID</th><th>Client</th><th>Contact</th><th>Adresă</th><th>TV</th><th>Fișe</th></tr></thead>
+<tbody><% rows.forEach(row => { %><tr><td>#<%= row.id %></td><td><strong><%= row.nume || 'Fără nume' %></strong></td><td><%= row.telefon %><small><%= row.email || '' %></small></td><td><%= row.adresa || '—' %></td><td><%= row.televizoare %></td><td><%= row.fise %></td></tr><% }) %></tbody></table></section>
+<%- include('partials/footer') %>

@@ -1,0 +1,389 @@
+<%- include('partials/header', {
+  title: values.context_operatiune === 'atelier'
+    ? 'Predare către client - Mozy CRM'
+    : 'Operațiune teren - Mozy CRM',
+  active
+}) %>
+
+<div class="page-heading">
+  <div>
+    <span class="eyebrow">
+      <%= values.context_operatiune === 'atelier'
+        ? 'Recepție atelier'
+        : 'Tehnician teren'
+      %>
+    </span>
+    <h1>
+      <%= values.context_operatiune === 'atelier'
+        ? 'Predare echipament către client'
+        : 'Operațiune nouă'
+      %>
+    </h1>
+  </div>
+  <a
+    class="button ghost"
+    href="<%= values.context_operatiune === 'atelier' && values.receptie_id
+      ? `/receptie/${values.receptie_id}`
+      : '/teren'
+    %>"
+  >Înapoi</a>
+</div>
+
+<% if (error) { %>
+  <div class="reception-message error"><%= error %></div>
+<% } %>
+
+<form method="post" action="/teren/noua" class="detail-form field-form">
+  <input
+    type="hidden"
+    name="context_operatiune"
+    value="<%= values.context_operatiune || 'teren' %>"
+  >
+  <section class="test-mode-box">
+    <label class="test-mode-choice">
+      <input
+        id="field-test-mode"
+        type="checkbox"
+        name="este_test"
+        <%= values.este_test ? 'checked' : '' %>
+      >
+      <span>
+        <strong>Mod test</strong>
+        <small>
+          Rulează semnarea, WhatsApp, fotografiile, eticheta și garanția
+          cu serii TEST, apoi permite ștergerea completă.
+        </small>
+      </span>
+    </label>
+  </section>
+
+  <section class="panel">
+    <div class="form-grid">
+      <label>
+        <span class="form-label-text">
+          Operațiune <span aria-hidden="true">*</span>
+        </span>
+        <select id="field-operation" name="tip_operatiune" required>
+          <option value="ridicare" <%= values.tip_operatiune === 'ridicare' ? 'selected' : '' %>>
+            Ridicare echipament de la client
+          </option>
+          <option value="reparat_domiciliu" <%= values.tip_operatiune === 'reparat_domiciliu' ? 'selected' : '' %>>
+            Reparat la domiciliu
+          </option>
+          <option value="predare_reparat" <%= values.tip_operatiune === 'predare_reparat' ? 'selected' : '' %>>
+            Predare echipament reparat
+          </option>
+          <option value="predare_nereparat" <%= values.tip_operatiune === 'predare_nereparat' ? 'selected' : '' %>>
+            Predare echipament nereparat
+          </option>
+        </select>
+      </label>
+
+      <label <%= values.context_operatiune === 'atelier' ? 'hidden' : '' %>>
+        <span class="form-label-text">Identificator tehnician</span>
+        <input
+          name="tehnician_cod"
+          value="<%= values.tehnician_cod || 'TEHNICIAN-1' %>"
+          maxlength="30"
+          required
+        >
+      </label>
+    </div>
+  </section>
+
+  <section class="panel field-existing-reception">
+    <h2>Fișa aferentă predării</h2>
+    <label>
+      <span class="form-label-text">
+        Fișă client <span aria-hidden="true">*</span>
+      </span>
+      <select name="receptie_id">
+        <option value="">Selectează fișa</option>
+        <% receptii.forEach(row => { %>
+          <option
+            value="<%= row.id %>"
+            data-test="<%= row.este_test ? '1' : '0' %>"
+            <%= String(values.receptie_id || '') === String(row.id)
+              ? 'selected'
+              : ''
+            %>
+          >
+            <%= row.numar_receptie %> —
+            <%= row.este_test ? '[TEST] — ' : '' %>
+            <%= String(row.nume || '').trim() || 'Client fără nume' %> —
+            <%= row.telefon %> —
+            <%= [row.marca, row.model].filter(Boolean).join(' ') || row.tip_echipament %>
+          </option>
+        <% }) %>
+      </select>
+    </label>
+  </section>
+
+  <section class="panel field-new-customer">
+    <h2>Client și echipament</h2>
+    <div class="form-grid">
+      <label>
+        <span class="form-label-text">
+          Telefon <span aria-hidden="true">*</span>
+        </span>
+        <input name="telefon" value="<%= values.telefon || '' %>" autocomplete="tel">
+      </label>
+      <label>
+        <span class="form-label-text">Nume</span>
+        <input name="nume" value="<%= values.nume || '' %>" autocomplete="name">
+      </label>
+      <label>
+        <span class="form-label-text">E-mail</span>
+        <input name="email" type="email" value="<%= values.email || '' %>" autocomplete="email">
+      </label>
+      <label>
+        <span class="form-label-text">
+          Adresa intervenției / ridicării
+        </span>
+        <input name="adresa" value="<%= values.adresa || '' %>">
+      </label>
+      <label>
+        <span class="form-label-text">
+          Tip echipament <span aria-hidden="true">*</span>
+        </span>
+        <select name="tip_echipament">
+          <% ['TV', 'Laptop', 'PC', 'Consolă', 'Altul'].forEach(item => { %>
+            <option value="<%= item %>" <%= values.tip_echipament === item ? 'selected' : '' %>>
+              <%= item %>
+            </option>
+          <% }) %>
+        </select>
+      </label>
+      <label>
+        <span class="form-label-text">
+          Descriere dacă este „Altul”
+        </span>
+        <input name="descriere_echipament" value="<%= values.descriere_echipament || '' %>">
+      </label>
+      <label>
+        <span class="form-label-text">Marcă</span>
+        <input name="marca" value="<%= values.marca || '' %>">
+      </label>
+      <label>
+        <span class="form-label-text">Model</span>
+        <input name="model" value="<%= values.model || '' %>">
+      </label>
+      <label>
+        <span class="form-label-text">Serie</span>
+        <input name="serie" value="<%= values.serie || '' %>">
+      </label>
+      <label>
+        <span class="form-label-text">Preț estimat reparație</span>
+        <div class="money-input">
+          <input
+            name="pret_estimat_reparatie"
+            inputmode="decimal"
+            maxlength="15"
+            placeholder="0,00"
+            value="<%= values.pret_estimat_reparatie || '' %>"
+          >
+          <span>lei</span>
+        </div>
+      </label>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>Detalii operațiune</h2>
+    <div class="form-grid">
+      <label class="full-width">
+        <span class="form-label-text">
+          Defect reclamat <span aria-hidden="true">*</span>
+        </span>
+        <textarea name="defect_reclamat" rows="3"><%= values.defect_reclamat || '' %></textarea>
+      </label>
+      <label class="full-width field-repair-fields">
+        <span class="form-label-text">Constatarea tehnicianului</span>
+        <textarea name="constatare_tehnician" rows="3"><%= values.constatare_tehnician || '' %></textarea>
+      </label>
+      <label class="full-width field-repair-fields">
+        <span class="form-label-text">Intervenția efectuată</span>
+        <textarea name="interventie_efectuata" rows="3"><%= values.interventie_efectuata || '' %></textarea>
+      </label>
+      <label>
+        <span class="form-label-text">Accesorii</span>
+        <select name="are_accesorii" id="field-accessories">
+          <option value="nu" <%= values.are_accesorii !== 'da' ? 'selected' : '' %>>
+            Nu are accesorii
+          </option>
+          <option value="da" <%= values.are_accesorii === 'da' ? 'selected' : '' %>>
+            Are accesorii
+          </option>
+        </select>
+      </label>
+      <label class="field-accessories-detail">
+        <span class="form-label-text">Descriere accesorii</span>
+        <input name="accesorii" value="<%= values.accesorii || '' %>">
+      </label>
+      <label class="field-packaging-fields">
+        <span class="form-label-text">
+          Ambalat de client <span aria-hidden="true">*</span>
+        </span>
+        <select name="ambalat_de_client" id="field-packaged-by-client">
+          <option value="">Selectează</option>
+          <option value="nu" <%= values.ambalat_de_client === 'nu' ? 'selected' : '' %>>
+            Nu
+          </option>
+          <option value="da" <%= values.ambalat_de_client === 'da' ? 'selected' : '' %>>
+            Da
+          </option>
+        </select>
+      </label>
+      <label class="field-packaging-quality">
+        <span class="form-label-text">
+          Starea ambalării <span aria-hidden="true">*</span>
+        </span>
+        <select name="stare_ambalaj" id="field-packaging-quality">
+          <option value="">Selectează</option>
+          <option value="corespunzator" <%= values.stare_ambalaj === 'corespunzator' ? 'selected' : '' %>>
+            Corespunzătoare
+          </option>
+          <option value="insuficient" <%= values.stare_ambalaj === 'insuficient' ? 'selected' : '' %>>
+            Insuficientă
+          </option>
+        </select>
+      </label>
+      <label class="field-delivery-fields">
+        <span class="form-label-text">
+          Rezultatul probei <span aria-hidden="true">*</span>
+        </span>
+        <select name="rezultat_proba">
+          <option value="">Selectează</option>
+          <option value="functional" <%= values.rezultat_proba === 'functional' ? 'selected' : '' %>>
+            Probat — funcțional
+          </option>
+          <option value="nereparat" <%= values.rezultat_proba === 'nereparat' ? 'selected' : '' %>>
+            Probat — nereparat
+          </option>
+          <option value="refuz_client" <%= values.rezultat_proba === 'refuz_client' ? 'selected' : '' %>>
+            Clientul a refuzat proba
+          </option>
+          <option value="imposibil" <%= values.rezultat_proba === 'imposibil' ? 'selected' : '' %>>
+            Proba nu a fost posibilă
+          </option>
+        </select>
+      </label>
+      <label class="field-delivery-fields">
+        <span class="form-label-text">Motiv / observații probă</span>
+        <input name="motiv_proba" value="<%= values.motiv_proba || '' %>">
+      </label>
+      <label class="field-payment-fields">
+        <span class="form-label-text">Preț reparație</span>
+        <input name="pret_reparatie" inputmode="decimal" value="<%= values.pret_reparatie || '' %>">
+      </label>
+      <label class="field-payment-fields">
+        <span class="form-label-text">Metodă plată</span>
+        <select name="metoda_plata">
+          <option value="">Selectează</option>
+          <% [
+            ['numerar', 'Numerar'],
+            ['card', 'Card'],
+            ['transfer', 'Transfer'],
+            ['neincasat', 'Neîncasat']
+          ].forEach(([key, label]) => { %>
+            <option value="<%= key %>" <%= values.metoda_plata === key ? 'selected' : '' %>>
+              <%= label %>
+            </option>
+          <% }) %>
+        </select>
+      </label>
+      <label class="full-width">
+        <span class="form-label-text">Observații interne</span>
+        <textarea name="observatii_interne" rows="2"><%= values.observatii_interne || '' %></textarea>
+      </label>
+    </div>
+  </section>
+
+  <div class="page-actions">
+    <button class="button primary" type="submit">Salvează operațiunea</button>
+    <a
+      class="button ghost"
+      href="<%= values.context_operatiune === 'atelier' && values.receptie_id
+        ? `/receptie/${values.receptie_id}`
+        : '/teren'
+      %>"
+    >Renunță</a>
+  </div>
+</form>
+
+<script nonce="<%= cspNonce %>">
+  (() => {
+    const operation = document.getElementById('field-operation');
+    const testMode = document.getElementById('field-test-mode');
+    const receptionSelect =
+      document.querySelector('[name="receptie_id"]');
+    const accessories = document.getElementById('field-accessories');
+    const packagedByClient = document.getElementById(
+      'field-packaged-by-client'
+    );
+    const packagingQuality = document.getElementById(
+      'field-packaging-quality'
+    );
+
+    function toggle(selector, visible) {
+      document.querySelectorAll(selector).forEach(element => {
+        element.hidden = !visible;
+      });
+    }
+
+    function refresh() {
+      const value = operation.value;
+      const delivery = value.startsWith('predare_');
+      toggle('.field-existing-reception', delivery);
+      toggle('.field-new-customer', !delivery);
+      toggle('.field-delivery-fields', delivery);
+      toggle('.field-packaging-fields', value === 'ridicare');
+      toggle(
+        '.field-packaging-quality',
+        value === 'ridicare' && packagedByClient.value === 'da'
+      );
+      packagedByClient.required = value === 'ridicare';
+
+      if (receptionSelect) {
+        const expectedTest = testMode.checked ? '1' : '0';
+        Array.from(receptionSelect.options).forEach(option => {
+          if (!option.value) return;
+          option.hidden = option.dataset.test !== expectedTest;
+          option.disabled = option.dataset.test !== expectedTest;
+        });
+
+        const selected = receptionSelect.selectedOptions[0];
+        if (
+          selected?.value &&
+          selected.dataset.test !== expectedTest
+        ) {
+          receptionSelect.value = '';
+        }
+      }
+      packagingQuality.required =
+        value === 'ridicare' && packagedByClient.value === 'da';
+      toggle(
+        '.field-repair-fields',
+        value === 'reparat_domiciliu' ||
+          value === 'predare_reparat'
+      );
+      toggle(
+        '.field-payment-fields',
+        value === 'reparat_domiciliu' ||
+          value === 'predare_reparat'
+      );
+      toggle(
+        '.field-accessories-detail',
+        accessories.value === 'da'
+      );
+    }
+
+    operation.addEventListener('change', refresh);
+    testMode.addEventListener('change', refresh);
+    accessories.addEventListener('change', refresh);
+    packagedByClient.addEventListener('change', refresh);
+    refresh();
+  })();
+</script>
+
+<%- include('partials/footer') %>

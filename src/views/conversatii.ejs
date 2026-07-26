@@ -1,0 +1,138 @@
+<%
+const numeInvalide = [
+  'voc\u00ea',
+  'voce',
+  'mozy service electronice'
+];
+
+function numeAfisat(row) {
+  const nume = String(row.nume || '').trim();
+
+  if (!nume || numeInvalide.includes(nume.toLowerCase())) {
+    return 'Client f\u0103r\u0103 nume';
+  }
+
+  return nume;
+}
+
+function formatMessage(row) {
+  const mesaj = String(row.mesaj || '').trim();
+
+  if (row.tip !== 'image') {
+    return mesaj || 'Mesaj f\u0103r\u0103 con\u021binut';
+  }
+
+  try {
+    const vision = JSON.parse(mesaj);
+    const parts = [];
+
+    if (vision.marca) {
+      parts.push(`Marc\u0103: ${vision.marca}`);
+    }
+
+    if (vision.model) {
+      parts.push(`Model: ${vision.model}`);
+    }
+
+    if (vision.serie) {
+      parts.push(`Serie: ${vision.serie}`);
+    }
+
+    if (vision.cod_produs) {
+      parts.push(`Cod produs: ${vision.cod_produs}`);
+    }
+
+    if (vision.diagonala) {
+      parts.push(`Diagonal\u0103: ${vision.diagonala}\u2033`);
+    }
+
+    if (vision.tip_tv) {
+      parts.push(`Tip: ${vision.tip_tv}`);
+    }
+
+    if (vision.cod_placa) {
+      parts.push(`Cod plac\u0103: ${vision.cod_placa}`);
+    }
+
+    if (vision.alte_coduri) {
+      parts.push(`Alte coduri: ${vision.alte_coduri}`);
+    }
+
+    if (vision.observatii) {
+      parts.push(`Observa\u021bii: ${vision.observatii}`);
+    }
+
+    return parts.length
+      ? parts.join(' \u00b7 ')
+      : 'Imagine primit\u0103 \u0219i analizat\u0103';
+  } catch {
+    return mesaj || 'Imagine primit\u0103';
+  }
+}
+%>
+
+<%- include('partials/header', {
+  title: `Conversa\u021bii \u2014 Mozy CRM`,
+  active
+}) %>
+
+<div class="page-heading">
+  <div>
+    <span class="eyebrow">WhatsApp</span>
+    <h1>Conversa&#539;ii recente</h1>
+  </div>
+</div>
+
+<section class="panel conversation-list single-column">
+  <% if (!rows.length) { %>
+    <p class="empty">
+      Nu exist&#259; conversa&#539;ii.
+    </p>
+  <% } %>
+
+  <% rows.forEach(row => { %>
+    <article
+      class="conversation-card <%= row.necesita_raspuns ? 'needs-reply' : '' %>"
+    >
+      <div class="conversation-header">
+        <div>
+          <strong><%= numeAfisat(row) %></strong>
+
+          <small>
+            <%= row.telefon || 'Telefon indisponibil' %>
+            &middot;
+            <%= row.directie === 'incoming' ? 'primit' : 'trimis' %>
+            &middot;
+            <%= new Intl.DateTimeFormat('ro-RO', {
+              dateStyle: 'short',
+              timeStyle: 'short'
+            }).format(new Date(row.created_at)) %>
+          </small>
+        </div>
+
+        <div class="conversation-flags">
+          <% if (row.client_dificil) { %>
+            <span class="flag difficult">
+              Client dificil
+            </span>
+          <% } %>
+
+          <% if (
+            row.directie === 'incoming' &&
+            row.necesita_raspuns
+          ) { %>
+            <span class="badge alert">
+              Necesit&#259; r&#259;spuns
+            </span>
+          <% } %>
+        </div>
+      </div>
+
+      <p class="conversation-message">
+        <%= row.tip === 'image' ? '\uD83D\uDCF7 ' : '' %><%= formatMessage(row).slice(0, 500) %>
+      </p>
+    </article>
+  <% }) %>
+</section>
+
+<%- include('partials/footer') %>

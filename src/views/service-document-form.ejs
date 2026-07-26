@@ -1,0 +1,265 @@
+<%
+const isDeviz = type === 'deviz';
+const label = isDeviz ? 'Deviz' : 'Constatare tehnică';
+const value = (name, fallback = '') => form?.[name] ?? fallback ?? '';
+const dateRo = input => new Intl.DateTimeFormat('ro-RO', {
+  dateStyle: 'medium',
+  timeStyle: 'short',
+  timeZone: 'Europe/Bucharest'
+}).format(new Date(input));
+%>
+<%- include('partials/header', { title: `${label} — Mozy CRM`, active }) %>
+
+<div class="page-heading">
+  <div>
+    <span class="eyebrow"><%= kind === 'fisa' ? `Fișă service #${id}` : `Recepție atelier #${id}` %></span>
+    <h1><%= isDeviz ? 'Generează deviz' : 'Generează constatare' %></h1>
+  </div>
+  <a class="button ghost" href="<%= backUrl %>">Înapoi la fișă</a>
+</div>
+
+<% if (source.este_test) { %>
+  <div class="test-mode-banner">
+    <strong>DOCUMENT DE TEST – FĂRĂ VALOARE</strong>
+  </div>
+<% } %>
+<% if (error) { %><div class="alert error"><%= error %></div><% } %>
+<% if (created) { %><div class="save-toast"><%= label %> generat(ă) cu succes.</div><% } %>
+
+<form method="post" action="<%= formAction %>" class="service-document-form">
+  <section class="panel document-form-card">
+    <h2>1. Beneficiar</h2>
+    <div class="form-grid">
+      <label>Nume / denumire
+        <input name="beneficiar" value="<%= value('beneficiar', source.nume) %>">
+      </label>
+      <label>Telefon
+        <input name="telefon" required value="<%= value('telefon', source.telefon) %>">
+      </label>
+      <label class="full">Adresă
+        <input name="adresa" value="<%= value('adresa', source.adresa) %>">
+      </label>
+      <% if (isDeviz) { %>
+        <label class="full">CUI / CNP (opțional)
+          <input name="identificator_beneficiar" value="<%= value('identificator_beneficiar') %>">
+        </label>
+      <% } else { %>
+        <label class="full">Destinația documentului
+          <input name="destinatie" value="<%= value('destinatie') %>" placeholder="Asigurător, distribuitor energie, instanță, altă instituție">
+        </label>
+      <% } %>
+    </div>
+  </section>
+
+  <section class="panel document-form-card">
+    <h2>2. Echipament</h2>
+    <div class="form-grid">
+      <label>Echipament
+        <input name="echipament" value="<%= value('echipament', source.tip_echipament) %>">
+      </label>
+      <label>Marcă
+        <input name="marca" value="<%= value('marca', source.marca) %>">
+      </label>
+      <label>Model
+        <input name="model" value="<%= value('model', source.model) %>">
+      </label>
+      <label>Serie
+        <input name="serie" value="<%= value('serie', source.serie) %>">
+      </label>
+    </div>
+  </section>
+
+  <% if (isDeviz) { %>
+    <section class="panel document-form-card">
+      <h2>3. Lucrare și costuri</h2>
+      <div class="form-grid">
+        <label class="full">Defect reclamat
+          <textarea name="defect_reclamat" rows="3"><%= value('defect_reclamat', source.defect_reclamat) %></textarea>
+        </label>
+        <label class="full">Diagnostic
+          <textarea name="diagnostic" rows="4" required><%= value('diagnostic') %></textarea>
+        </label>
+        <label class="full">Operațiuni propuse / de efectuat
+          <textarea name="operatiuni" rows="4" required><%= value('operatiuni') %></textarea>
+        </label>
+        <label class="full">Piese / materiale necesare
+          <textarea name="piese" rows="3"><%= value('piese') %></textarea>
+        </label>
+        <label class="full">Descriere manoperă
+          <textarea name="manopera_descriere" rows="3"><%= value('manopera_descriere') %></textarea>
+        </label>
+        <label>Cost piese (lei)
+          <input name="cost_piese" type="number" min="0" step="0.01" value="<%= value('cost_piese', 0) %>">
+        </label>
+        <label>Cost manoperă (lei)
+          <input name="cost_manopera" type="number" min="0" step="0.01" value="<%= value('cost_manopera', 0) %>">
+        </label>
+        <label>Alte costuri (lei)
+          <input name="alte_costuri" type="number" min="0" step="0.01" value="<%= value('alte_costuri', 0) %>">
+        </label>
+        <label>TVA (%)
+          <input name="cota_tva" type="number" min="0" max="100" step="0.01" value="<%= value('cota_tva', 0) %>">
+        </label>
+        <label>Termen estimat de execuție
+          <input name="termen_executie" value="<%= value('termen_executie') %>" placeholder="ex. 3–5 zile lucrătoare">
+        </label>
+        <label>Valabilitate deviz
+          <input name="valabilitate" value="<%= value('valabilitate', '15 zile') %>">
+        </label>
+        <label class="full">Observații
+          <textarea name="observatii" rows="3"><%= value('observatii') %></textarea>
+        </label>
+        <label class="full">Alte mențiuni / condiții
+          <textarea name="alte_mentiuni" rows="3"><%= value('alte_mentiuni', 'Devizul este estimativ până la acceptarea lucrării. Orice operațiune suplimentară va fi comunicată beneficiarului.') %></textarea>
+        </label>
+      </div>
+    </section>
+  <% } else { %>
+    <section class="panel document-form-card">
+      <h2>3. Examinare și concluzie</h2>
+      <div class="form-grid">
+        <label class="full">Defect reclamat / manifestare
+          <textarea name="defect" rows="3"><%= value('defect', source.defect_reclamat) %></textarea>
+        </label>
+        <label class="full">Stare la examinare
+          <textarea name="stare_examinare" rows="3"><%= value('stare_examinare') %></textarea>
+        </label>
+        <label class="full">Constatări tehnice
+          <textarea name="constatari" rows="5" required><%= value('constatari') %></textarea>
+        </label>
+        <label class="full">Cauză probabilă
+          <textarea name="cauza_probabila" rows="3"><%= value('cauza_probabila') %></textarea>
+        </label>
+        <label class="full">Verificări / metodă de diagnostic
+          <textarea name="verificari" rows="3"><%= value('verificari') %></textarea>
+        </label>
+        <label class="full">Recomandare
+          <textarea name="recomandare" rows="3"><%= value('recomandare') %></textarea>
+        </label>
+        <label class="full">Concluzie tehnică
+          <textarea name="concluzie" rows="4" required><%= value('concluzie') %></textarea>
+        </label>
+        <label class="full">Limitări / observații
+          <textarea name="observatii" rows="3"><%= value('observatii', 'Concluziile se bazează pe verificările nedistructive și informațiile disponibile la data examinării.') %></textarea>
+        </label>
+      </div>
+    </section>
+  <% } %>
+
+  <section class="panel document-form-card signature-card">
+    <h2><%= isDeviz ? '4. Semnătura operatorului' : '4. Semnătura operatorului' %></h2>
+    <p class="muted">Opțional. Semnează cu mouse-ul, stylusul sau degetul. Semnătura va apărea numai în această versiune a PDF-ului.</p>
+    <div class="document-signature-box">
+      <canvas id="document-signature-canvas" width="900" height="260" aria-label="Câmp pentru semnătura operatorului"></canvas>
+    </div>
+    <input id="document-signature-data" type="hidden" name="semnatura_data">
+    <div class="page-actions">
+      <button class="button ghost" id="clear-document-signature" type="button">Șterge semnătura</button>
+    </div>
+  </section>
+
+  <section class="panel document-submit-card">
+    <label class="document-whatsapp-option">
+      <input type="checkbox" name="trimite_whatsapp" value="1">
+      <span>
+        <strong>Trimite automat clientului pe WhatsApp</strong>
+        <small>Dacă nu bifezi, PDF-ul rămâne doar în CRM și poate fi trimis ulterior.</small>
+      </span>
+    </label>
+    <button class="button primary" type="submit">
+      <%= isDeviz ? 'Generează PDF deviz' : 'Generează PDF constatare' %>
+    </button>
+  </section>
+</form>
+
+<% if (documents.length) { %>
+  <section class="panel document-history">
+    <h2>Istoric <%= isDeviz ? 'devize' : 'constatări' %></h2>
+    <div class="certificate-list">
+      <% documents.forEach(document => { %>
+        <article class="certificate-row">
+          <div>
+            <strong>Nr. <%= document.numar_inregistrare %> · <%= document.numar_document %></strong>
+            <small>
+              <%= dateRo(document.created_at) %>
+              · <%= document.este_semnat ? 'Semnat' : 'Nesemnat' %>
+              <% if (isDeviz && document.total_cu_tva != null) { %>
+                · Total <%= Number(document.total_cu_tva).toLocaleString('ro-RO', { minimumFractionDigits: 2 }) %> lei
+              <% } %>
+            </small>
+          </div>
+          <div class="page-actions">
+            <a class="button ghost" target="_blank" rel="noopener" href="/documente-service/<%= document.id %>/pdf">Vezi PDF</a>
+            <a class="button ghost" href="/documente-service/<%= document.id %>/pdf?download=1">Descarcă</a>
+            <form method="post" action="/documente-service/<%= document.id %>/regenerare">
+              <button class="button ghost" type="submit">Regenerează</button>
+            </form>
+            <form method="post" action="/documente-service/<%= document.id %>/trimite">
+              <button class="button primary" type="submit"><%= document.trimisa_la ? 'Retrimite WhatsApp' : 'Trimite WhatsApp' %></button>
+            </form>
+          </div>
+          <% if (document.trimisa_la) { %><small>Trimis la <%= dateRo(document.trimisa_la) %></small><% } %>
+          <% if (document.eroare_trimitere) { %><small class="form-error">Ultima trimitere a eșuat. Documentul a rămas salvat.</small><% } %>
+        </article>
+      <% }) %>
+    </div>
+  </section>
+<% } %>
+
+<script nonce="<%= cspNonce %>">
+(() => {
+  const canvas = document.getElementById('document-signature-canvas');
+  const hidden = document.getElementById('document-signature-data');
+  const clear = document.getElementById('clear-document-signature');
+  const form = canvas?.closest('form');
+  if (!canvas || !hidden || !clear || !form) return;
+  const ctx = canvas.getContext('2d');
+  let drawing = false;
+  let hasInk = false;
+  ctx.lineWidth = 4;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  ctx.strokeStyle = '#15213d';
+  const point = event => {
+    const rect = canvas.getBoundingClientRect();
+    return {
+      x: (event.clientX - rect.left) * canvas.width / rect.width,
+      y: (event.clientY - rect.top) * canvas.height / rect.height
+    };
+  };
+  canvas.addEventListener('pointerdown', event => {
+    drawing = true;
+    canvas.setPointerCapture(event.pointerId);
+    const p = point(event);
+    ctx.beginPath();
+    ctx.moveTo(p.x, p.y);
+    event.preventDefault();
+  });
+  canvas.addEventListener('pointermove', event => {
+    if (!drawing) return;
+    const p = point(event);
+    ctx.lineTo(p.x, p.y);
+    ctx.stroke();
+    hasInk = true;
+    event.preventDefault();
+  });
+  const stop = event => {
+    if (!drawing) return;
+    drawing = false;
+    if (canvas.hasPointerCapture(event.pointerId)) {
+      canvas.releasePointerCapture(event.pointerId);
+    }
+  };
+  canvas.addEventListener('pointerup', stop);
+  canvas.addEventListener('pointercancel', stop);
+  clear.addEventListener('click', () => {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    hidden.value = '';
+    hasInk = false;
+  });
+  form.addEventListener('submit', () => {
+    hidden.value = hasInk ? canvas.toDataURL('image/png') : '';
+  });
+})();
+</script>
+<%- include('partials/footer') %>

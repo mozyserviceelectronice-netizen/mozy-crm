@@ -1,0 +1,201 @@
+{
+  "name": "Mozy - Program tehnician - registru separat",
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  p.id AS programare_id,\n  p.data_programare,\n  p.ora_programare,\n  p.adresa AS adresa_interventie,\n  p.defect_reclamat,\n  p.observatii,\n  p.status,\n  c.nume,\n  c.telefon,\n  p.marca,\n  p.model,\n  p.diagonala\nFROM whatsapp.programari p\nJOIN whatsapp.contacte c ON c.id = p.contact_id\nWHERE p.data_programare = CURRENT_DATE + $1\n  AND p.status = 'confirmata'\nORDER BY p.ora_programare ASC NULLS LAST;",
+        "options": {
+          "queryReplacement": "={{ [1] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        208,
+        0
+      ],
+      "id": "d5b30a64-30ce-4b26-9f6c-9b79ad352d79",
+      "name": "Get Program Tomorrow",
+      "credentials": {
+        "postgres": {
+          "id": "7MLsduEbzQLaYaC3",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "let mesaj = \"📅 Program intervenții mâine\\n\\n\";\n\nfor (const item of items) {\n  const p = item.json;\n\n  mesaj += \n`🕘 ${p.ora_programare.substring(0,5)}\n\n👤 ${p.nume}\n📞 ${p.telefon}\n📍 ${p.adresa_interventie}\n\n📺 ${p.marca} ${p.model} (${p.diagonala}\")\n🔧 ${p.defect_reclamat}\n\n${p.observatii ? \"📝 \" + p.observatii : \"\"}\n\n--------------------\n\n`;\n}\n\nreturn [\n  {\n    json: {\n      mesaj\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        416,
+        0
+      ],
+      "id": "b00a88b4-6ee2-47f0-b6d8-0a5895b970db",
+      "name": "Format Program Tehnician"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 22 * * 1-5"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        0,
+        0
+      ],
+      "id": "245daf7f-aa8b-439e-9e96-0bccb5564c00",
+      "name": "Get program tomorrow"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://wa.reparatii-televizoare.com/message/sendText/mozy",
+        "sendHeaders": true,
+        "specifyHeaders": "=keypair",
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "REPLACE_WITH_EVOLUTION_API_KEY"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "number",
+              "value": "40771559501"
+            },
+            {
+              "name": "text",
+              "value": "={{$json.mesaj}}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        624,
+        0
+      ],
+      "id": "d1828d5f-74f9-4a13-8fee-1c96aaf7d7be",
+      "name": "Send WhatsApp - Andrei"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://wa.reparatii-televizoare.com/message/sendText/mozy",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "REPLACE_WITH_EVOLUTION_API_KEY"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "number",
+              "value": "40721341491"
+            },
+            {
+              "name": "text",
+              "value": "={{ $('Format Program Tehnician').first().json.mesaj }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        832,
+        0
+      ],
+      "id": "becdfe70-4506-42bc-8930-5a453aaeec0d",
+      "name": "Send WhatsApp - Giani"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Get Program Tomorrow": {
+      "main": [
+        [
+          {
+            "node": "Format Program Tehnician",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get program tomorrow": {
+      "main": [
+        [
+          {
+            "node": "Get Program Tomorrow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Program Tehnician": {
+      "main": [
+        [
+          {
+            "node": "Send WhatsApp - Andrei",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send WhatsApp - Andrei": {
+      "main": [
+        [
+          {
+            "node": "Send WhatsApp - Giani",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "27965c49-8747-4c40-ae6b-ea902fdcf3d0",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "0739d1da5132411f7037ebafc68a64ccb348c85300b52997ca9cc9b64fd00a51"
+  },
+  "nodeGroups": [],
+  "id": "OQ8auBcqprnWIFLm",
+  "tags": []
+}

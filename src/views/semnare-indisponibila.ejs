@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="ro">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Fișă indisponibilă — Mozy Service</title>
+  <style nonce="<%= cspNonce %>">
+    body{margin:0;background:#f4f7fb;color:#172033;font-family:system-ui,sans-serif}
+    main{max-width:620px;margin:10vh auto;padding:24px}
+    section{background:#fff;border:1px solid #dbe3ef;border-radius:16px;padding:28px;box-shadow:0 12px 36px rgba(16,24,40,.08)}
+    h1{margin-top:0;font-size:25px}
+    p{line-height:1.6;color:#526075}
+  </style>
+  <meta name="csrf-token" content="<%= csrfToken %>">
+</head>
+<body>
+  <main>
+    <section>
+      <h1>Fișa nu este disponibilă</h1>
+      <p><%= motiv %></p>
+      <p>
+        Pentru ajutor, contactează Mozy Service Electronice folosind
+        datele de contact cunoscute.
+      </p>
+    </section>
+  </main>
+  <script src="/app.js" defer></script>
+</body>
+</html>

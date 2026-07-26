@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="ro">
+<head>
+  <meta charset="utf-8">
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1"
+  >
+  <meta name="robots" content="noindex,nofollow">
+  <title><%= title || 'Mozy CRM' %></title>
+  <link rel="stylesheet" href="/styles.css?v=1.8.0">
+  <meta name="csrf-token" content="<%= csrfToken %>">
+</head>
+
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" id="crm-sidebar">
+      <a class="brand" href="/">
+        <span class="brand-mark">M</span>
+        <span>
+          <strong>Mozy CRM</strong>
+          <small>Created by Andrei Mozara</small>
+        </span>
+      </a>
+
+      <nav>
+        <a
+          class="<%= active === 'dashboard' ? 'active' : '' %>"
+          href="/"
+        >
+          Dashboard
+        </a>
+
+        <a
+          class="<%= ['teren', 'programari-tehnician'].includes(active) ? 'active' : '' %>"
+          href="/teren"
+        >
+          Tehnician
+        </a>
+
+        <a
+          class="<%= active === 'receptie' ? 'active' : '' %>"
+          href="/receptie"
+        >
+          Fi&#537;e
+        </a>
+
+        <a
+          class="<%= active === 'setari' ? 'active' : '' %>"
+          href="/setari"
+        >
+          Set&#259;ri
+        </a>
+      </nav>
+
+      <form action="/logout" method="post">
+        <button class="logout" type="submit">
+          Deconectare
+        </button>
+      </form>
+    </aside>
+
+    <main class="content">
+      <header class="mobile-header">
+        <a class="brand" href="/">
+          <span class="brand-mark">M</span>
+          <span>
+            <strong>Mozy CRM</strong>
+            <small>Created by Andrei Mozara</small>
+          </span>
+        </a>
+
+        <button
+          class="mobile-menu-toggle"
+          type="button"
+          aria-label="Deschide meniul"
+          aria-controls="crm-sidebar"
+          aria-expanded="false"
+        >
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+      </header>
+
+      <button
+        class="mobile-menu-backdrop"
+        type="button"
+        aria-label="Închide meniul"
+        tabindex="-1"
+      ></button>

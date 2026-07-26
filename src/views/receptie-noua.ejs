@@ -1,0 +1,275 @@
+<%- include('partials/header', {
+  title: 'Primire aparat - Mozy CRM',
+  active
+}) %>
+
+<div class="page-heading">
+  <div>
+    <span class="eyebrow">Recep&#539;ie atelier</span>
+    <h1>Primire aparat</h1>
+  </div>
+
+  <a class="button ghost" href="/receptie">
+    Inapoi la recep&#539;ii
+  </a>
+</div>
+
+<section class="panel">
+  <% if (error) { %>
+    <p class="form-error"><%= error %></p>
+  <% } %>
+
+  <form method="post" action="/receptie/noua" class="detail-form">
+    <section class="test-mode-box">
+      <label class="test-mode-choice">
+        <input
+          type="checkbox"
+          name="este_test"
+          <%= values.este_test ? 'checked' : '' %>
+        >
+        <span>
+          <strong>Mod test</strong>
+          <small>
+            Activează toate funcțiile reale, dar folosește seria
+            TEST-REC și permite ștergerea completă ulterioară.
+          </small>
+        </span>
+      </label>
+    </section>
+
+    <div class="panel-title">
+      <h2>Date client</h2>
+    </div>
+
+    <div class="form-grid">
+      <label>
+        <span class="form-label-text">
+          Nume client <span aria-hidden="true">*</span>
+        </span>
+        <input
+          type="text"
+          name="nume"
+          value="<%= values.nume || '' %>"
+          maxlength="150"
+          autocomplete="name"
+          required
+        >
+      </label>
+
+      <label>
+        <span class="form-label-text">
+          Telefon <span aria-hidden="true">*</span>
+        </span>
+        <input
+          type="tel"
+          name="telefon"
+          value="<%= values.telefon || '' %>"
+          maxlength="30"
+          autocomplete="tel"
+          required
+        >
+      </label>
+
+      <label>
+        <span class="form-label-text">E-mail</span>
+        <input
+          type="email"
+          name="email"
+          value="<%= values.email || '' %>"
+          maxlength="200"
+          autocomplete="email"
+        >
+      </label>
+
+      <label class="full-width">
+        <span class="form-label-text">Adres&#259;</span>
+        <textarea name="adresa" rows="2"><%= values.adresa || '' %></textarea>
+      </label>
+    </div>
+
+    <div class="panel-title form-section-title">
+      <h2>Date aparat</h2>
+    </div>
+
+    <div class="form-grid">
+      <label>
+        <span class="form-label-text">
+          Tip echipament <span aria-hidden="true">*</span>
+        </span>
+        <select name="tip_echipament" required>
+          <option value="">Selecteaz&#259;</option>
+          <% ['Televizor', 'Laptop', 'Calculator', 'Consola', 'Monitor', 'Altul'].forEach(tip => { %>
+            <option
+              value="<%= tip %>"
+              <%= values.tip_echipament === tip ? 'selected' : '' %>
+            ><%= tip %></option>
+          <% }) %>
+        </select>
+      </label>
+
+        <label
+          id="descriere-echipament-group"
+          <%= values.tip_echipament === 'Altul' ? '' : 'hidden' %>
+        >
+          <span class="form-label-text">
+            Descriere echipament <span aria-hidden="true">*</span>
+          </span>
+          <input
+            id="descriere-echipament"
+            type="text"
+            name="descriere_echipament"
+            value="<%= values.descriere_echipament || '' %>"
+            maxlength="150"
+            <%= values.tip_echipament === 'Altul' ? 'required' : 'disabled' %>
+          >
+        </label>
+
+      <label>
+        <span class="form-label-text">Marc&#259;</span>
+        <input type="text" name="marca" value="<%= values.marca || '' %>" maxlength="100">
+      </label>
+
+      <label>
+        <span class="form-label-text">Model</span>
+        <input type="text" name="model" value="<%= values.model || '' %>" maxlength="150">
+      </label>
+
+      <label>
+        <span class="form-label-text">Serie</span>
+        <input type="text" name="serie" value="<%= values.serie || '' %>" maxlength="150">
+      </label>
+
+      <label>
+        <span class="form-label-text">Pre&#539; estimat repara&#539;ie</span>
+        <div class="money-input">
+          <input
+            type="text"
+            name="pret_estimat_reparatie"
+            value="<%= values.pret_estimat_reparatie || '' %>"
+            inputmode="decimal"
+            maxlength="15"
+            placeholder="0,00"
+          >
+          <span>lei</span>
+        </div>
+      </label>
+
+      <label class="full-width">
+        <span class="form-label-text">
+          Defect reclamat <span aria-hidden="true">*</span>
+        </span>
+        <textarea name="defect_reclamat" rows="3" required><%= values.defect_reclamat || '' %></textarea>
+      </label>
+
+      <label class="full-width">
+        <span class="form-label-text">Stare la primire</span>
+        <textarea name="stare_la_primire" rows="3"><%= values.stare_la_primire || '' %></textarea>
+      </label>
+    </div>
+
+    <div class="panel-title form-section-title">
+      <h2>Accesorii predate</h2>
+    </div>
+
+    <fieldset class="radio-group">
+      <legend>Alegerea este obligatorie</legend>
+
+      <label>
+        <input
+          type="radio"
+          name="are_accesorii"
+          value="nu"
+          <%= values.are_accesorii === 'nu' ? 'checked' : '' %>
+          required
+        >
+        Nu are accesorii
+      </label>
+
+      <label>
+        <input
+          type="radio"
+          name="are_accesorii"
+          value="da"
+          <%= values.are_accesorii === 'da' ? 'checked' : '' %>
+          required
+        >
+        Are accesorii
+      </label>
+    </fieldset>
+
+      <label
+        id="accessories-details"
+        class="accessories-details"
+        <%= values.are_accesorii === 'da' ? '' : 'hidden' %>
+      >
+        <span class="form-label-text">
+          Accesorii (telecomand&#259;, cablu, alimentator etc.)
+        </span>
+        <textarea
+          id="accesorii"
+          name="accesorii"
+          rows="2"
+          <%= values.are_accesorii === 'da' ? 'required' : 'disabled' %>
+        ><%= values.accesorii || '' %></textarea>
+      </label>
+
+    <label class="full-width form-section-title">
+      <span class="form-label-text">Observa&#539;ii interne</span>
+      <textarea name="observatii" rows="3"><%= values.observatii || '' %></textarea>
+    </label>
+
+    <div class="form-actions">
+      <a class="button ghost" href="/receptie">Renun&#539;&#259;</a>
+      <button class="button primary" type="submit">Salveaz&#259; recep&#539;ia</button>
+    </div>
+  </form>
+</section>
+
+
+  <script nonce="<%= cspNonce %>">
+    (() => {
+      const equipmentType =
+        document.querySelector('[name="tip_echipament"]');
+      const equipmentGroup =
+        document.getElementById('descriere-echipament-group');
+      const equipmentDescription =
+        document.getElementById('descriere-echipament');
+
+      const accessoryChoices =
+        document.querySelectorAll('[name="are_accesorii"]');
+      const accessoryGroup =
+        document.getElementById('accessories-details');
+      const accessoryDescription =
+        document.getElementById('accesorii');
+
+      const syncEquipment = () => {
+        const visible = equipmentType.value === 'Altul';
+
+        equipmentGroup.hidden = !visible;
+        equipmentDescription.disabled = !visible;
+        equipmentDescription.required = visible;
+      };
+
+      const syncAccessories = () => {
+        const selected = document.querySelector(
+          '[name="are_accesorii"]:checked'
+        );
+        const visible = selected?.value === 'da';
+
+        accessoryGroup.hidden = !visible;
+        accessoryDescription.disabled = !visible;
+        accessoryDescription.required = visible;
+      };
+
+      equipmentType.addEventListener('change', syncEquipment);
+
+      accessoryChoices.forEach((choice) => {
+        choice.addEventListener('change', syncAccessories);
+      });
+
+      syncEquipment();
+      syncAccessories();
+    })();
+  </script>
+
+<%- include('partials/footer') %>

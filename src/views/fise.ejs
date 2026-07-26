@@ -1,0 +1,166 @@
+<%
+const numeInvalide = [
+  'voc\u00ea',
+  'voce',
+  'mozy service electronice'
+];
+
+const eticheteStatus = {
+  noua: 'Nou\u0103',
+  in_asteptare: '\u00cen a\u0219teptare',
+  confirmata: 'Confirmat\u0103',
+  in_lucru: '\u00cen lucru',
+  finalizata: 'Finalizat\u0103',
+  anulata: 'Anulat\u0103'
+};
+
+function numeAfisat(row) {
+  const nume = String(row.nume || '').trim();
+
+  if (!nume || numeInvalide.includes(nume.toLowerCase())) {
+    return 'Client f\u0103r\u0103 nume';
+  }
+
+  return nume;
+}
+%>
+
+<%- include('partials/header', {
+  title: `Fi\u0219e service \u2014 Mozy CRM`,
+  active
+}) %>
+
+<div class="page-heading">
+  <div>
+    <span class="eyebrow">Opera&#539;ional</span>
+    <h1>Fi&#537;e service</h1>
+  </div>
+</div>
+
+<form class="filters" method="get">
+  <input
+    name="q"
+    value="<%= search %>"
+    placeholder="Nume, telefon, model, serie, defect..."
+  >
+
+  <select name="status">
+    <option value="">Toate statusurile</option>
+
+    <% [
+      'noua',
+      'in_asteptare',
+      'confirmata',
+      'in_lucru',
+      'finalizata',
+      'anulata'
+    ].forEach(item => { %>
+      <option
+        value="<%= item %>"
+        <%= status === item ? 'selected' : '' %>
+      >
+        <%= eticheteStatus[item] %>
+      </option>
+    <% }) %>
+  </select>
+
+  <button class="button primary" type="submit">
+    Caut&#259;
+  </button>
+
+  <a class="button ghost" href="/fise">
+    Reseteaz&#259;
+  </a>
+</form>
+
+<section class="panel table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Fi&#537;&#259;</th>
+        <th>Client</th>
+        <th>Televizor</th>
+        <th>Defect</th>
+        <th>Programare</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+
+    <tbody>
+      <% rows.forEach(row => { %>
+        <tr>
+          <td>
+            <a href="/fise/<%= row.id %>">
+              #<%= row.id %>
+            </a>
+          </td>
+
+          <td>
+            <strong><%= numeAfisat(row) %></strong>
+            <small>
+              <%= row.telefon || 'Telefon indisponibil' %>
+            </small>
+
+            <% if (row.client_dificil) { %>
+              <div class="table-flags">
+                <span class="flag difficult">
+                  Client dificil
+                </span>
+              </div>
+            <% } %>
+          </td>
+
+          <td>
+            <%= [
+              row.marca,
+              row.model,
+              row.diagonala
+                ? `${row.diagonala}\u2033`
+                : null
+            ].filter(Boolean).join(' ') || '\u2014' %>
+          </td>
+
+          <td>
+            <%= row.defect_reclamat || '\u2014' %>
+          </td>
+
+          <td>
+            <%= row.data_programare
+              ? new Intl.DateTimeFormat('ro-RO').format(
+                  new Date(row.data_programare)
+                )
+              : '\u2014'
+            %>
+
+            <%= row.ora_programare
+              ? String(row.ora_programare).slice(0, 5)
+              : ''
+            %>
+          </td>
+
+          <td>
+            <div class="status-flags">
+              <span class="badge <%= row.status %>">
+                <%= eticheteStatus[row.status] || row.status %>
+              </span>
+
+              <% if (row.este_garantie) { %>
+                <span class="flag warranty">
+                  Garan&#539;ie
+                </span>
+              <% } %>
+            </div>
+          </td>
+        </tr>
+      <% }) %>
+    </tbody>
+  </table>
+
+  <% if (!rows.length) { %>
+    <p class="empty">
+      Nu am g&#259;sit fi&#537;e.
+    </p>
+  <% } %>
+</section>
+
+<%- include('partials/footer') %>

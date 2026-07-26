@@ -1,0 +1,95 @@
+<%- include('partials/header', {
+  title: 'Tehnician teren - Mozy CRM',
+  active
+}) %>
+
+<nav class="technician-tabs" aria-label="Secțiuni tehnician">
+  <a class="active" href="/teren">Teren</a>
+  <a href="/tehnician/programari">Programări</a>
+</nav>
+
+<div class="page-heading">
+  <div>
+    <span class="eyebrow">Operațiuni mobile</span>
+    <h1>Tehnician teren</h1>
+  </div>
+
+  <a class="button primary" href="/teren/noua">
+    Operațiune nouă
+  </a>
+</div>
+
+<% if (testSters) { %>
+  <div class="reception-message success">
+    Testul și toate datele TEST asociate au fost șterse.
+  </div>
+<% } %>
+
+<section class="panel">
+  <form class="reception-search" method="get" action="/teren">
+    <label for="field-search">Caută o intervenție</label>
+    <div class="reception-search-controls">
+      <input
+        id="field-search"
+        name="q"
+        type="search"
+        value="<%= q %>"
+        placeholder="Număr PV, client, telefon, fișă, marcă sau model"
+      >
+      <button class="button primary" type="submit">Caută</button>
+      <% if (q) { %>
+        <a class="button ghost" href="/teren">Resetează</a>
+      <% } %>
+    </div>
+  </form>
+
+  <% if (!rows.length) { %>
+    <p class="empty">Nu există intervenții pentru filtrul selectat.</p>
+  <% } %>
+
+  <div class="field-list">
+    <% rows.forEach(row => { %>
+      <a class="field-card" href="/teren/<%= row.id %>">
+        <div>
+          <strong>
+            <%= row.numar_interventie || `Intervenție #${row.id}` %>
+          </strong>
+          <% if (row.este_test) { %>
+            <span class="test-mode-badge">TEST</span>
+          <% } %>
+          <span>
+            <%= operationLabels[row.tip_operatiune] ||
+              row.tip_operatiune %>
+          </span>
+          <small>
+            <%= String(row.nume || '').trim() || 'Client fără nume' %>
+            &middot; <%= row.telefon %>
+          </small>
+          <small>
+            <%= [
+              row.tip_echipament,
+              row.marca,
+              row.model
+            ].filter(Boolean).join(' · ') || 'Echipament' %>
+            <% if (row.numar_receptie) { %>
+              &middot; <%= row.numar_receptie %>
+            <% } %>
+          </small>
+        </div>
+
+        <span class="badge field-<%= row.status %>">
+          <%= row.status === 'asteapta_semnare'
+            ? 'Așteaptă semnare'
+            : row.status === 'semnat'
+              ? 'Semnat'
+              : row.status === 'finalizat'
+                ? 'Finalizat'
+                : 'Anulat'
+          %>
+        </span>
+      </a>
+    <% }) %>
+  </div>
+</section>
+
+<%- include('partials/footer') %>

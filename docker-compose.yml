@@ -1,0 +1,34 @@
+services:
+  mozy-crm:
+    build: .
+    container_name: mozy_crm
+    restart: unless-stopped
+    init: true
+    user: "1000:1000"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    env_file:
+      - .env
+    ports:
+      - "127.0.0.1:3005:3000"
+    volumes:
+      - ./data:/app/data
+      - /run/mozy-crm-maintenance:/run/mozy-crm-maintenance
+    networks:
+      - mozy-network
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:3000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+networks:
+  mozy-network:
+    external: true
+    name: infra_mozy-network

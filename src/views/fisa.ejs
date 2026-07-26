@@ -1,0 +1,459 @@
+<%
+const numeClientInvalid = [
+  'voc\u00ea',
+  'voce',
+  'mozy service electronice'
+];
+
+const numeClient = fisa.nume &&
+  !numeClientInvalid.includes(
+    String(fisa.nume).trim().toLowerCase()
+  )
+    ? fisa.nume
+    : 'Client f\u0103r\u0103 nume';
+
+const eticheteStatus = {
+  noua: 'Nou\u0103',
+  in_asteptare: '\u00cen a\u0219teptare',
+  confirmata: 'Confirmat\u0103',
+  in_lucru: '\u00cen lucru',
+  finalizata: 'Finalizat\u0103',
+  anulata: 'Anulat\u0103'
+};
+
+const codEroare =
+  typeof errorCode === 'string'
+    ? errorCode
+    : '';
+
+const mesajeEroare = {
+  programare_incompleta:
+    'O fi\u0219\u0103 nu poate fi confirmat\u0103 f\u0103r\u0103 dat\u0103 \u0219i or\u0103.',
+  date_nevalide:
+    'Verific\u0103 data, ora \u0219i valorile introduse.',
+  status_nevalid:
+    'Statusul selectat nu este valid.'
+};
+
+function dataPentruInput(value) {
+  if (!value) {
+    return '';
+  }
+
+  const text = String(value);
+  const rezultat = text.match(/^\d{4}-\d{2}-\d{2}/);
+
+  if (rezultat) {
+    return rezultat[0];
+  }
+
+  const data = new Date(value);
+
+  if (Number.isNaN(data.getTime())) {
+    return '';
+  }
+
+  return data.toISOString().slice(0, 10);
+}
+
+function formatConversationMessage(row) {
+  const mesaj = String(row.mesaj || '').trim();
+
+  if (row.tip !== 'image') {
+    return mesaj ||
+      'Mesaj f\u0103r\u0103 con\u021binut';
+  }
+
+  try {
+    const vision = JSON.parse(mesaj);
+    const lines = [];
+
+    if (vision.marca) {
+      lines.push(`Marc\u0103: ${vision.marca}`);
+    }
+
+    if (vision.model) {
+      lines.push(`Model: ${vision.model}`);
+    }
+
+    if (vision.serie) {
+      lines.push(`Serie: ${vision.serie}`);
+    }
+
+    if (vision.cod_produs) {
+      lines.push(
+        `Cod produs: ${vision.cod_produs}`
+      );
+    }
+
+    if (vision.diagonala) {
+      lines.push(
+        `Diagonal\u0103: ${vision.diagonala}\u2033`
+      );
+    }
+
+    if (vision.tip_tv) {
+      lines.push(`Tip TV: ${vision.tip_tv}`);
+    }
+
+    if (vision.cod_placa) {
+      lines.push(
+        `Cod plac\u0103: ${vision.cod_placa}`
+      );
+    }
+
+    if (vision.alte_coduri) {
+      lines.push(
+        `Alte coduri: ${vision.alte_coduri}`
+      );
+    }
+
+    if (vision.observatii) {
+      lines.push(
+        `Observa\u021bii: ${vision.observatii}`
+      );
+    }
+
+    return lines.length
+      ? lines.join('\n')
+      : 'Imagine primit\u0103 \u0219i analizat\u0103';
+  } catch {
+    return mesaj || 'Imagine primit\u0103';
+  }
+}
+%>
+
+<%- include('partials/header', {
+  title: `Fi\u0219a #${fisa.id} \u2014 Mozy CRM`,
+  active
+}) %>
+
+<% if (saved) { %>
+  <div
+    id="save-toast"
+    class="save-toast"
+    role="status"
+    aria-live="polite"
+  >
+    Modific&#259;rile au fost salvate cu succes.
+  </div>
+<% } %>
+
+<% if (codEroare && mesajeEroare[codEroare]) { %>
+  <div
+    id="error-toast"
+    class="error-toast"
+    role="alert"
+  >
+    <%= mesajeEroare[codEroare] %>
+  </div>
+<% } %>
+
+<div class="page-heading">
+  <div>
+    <span class="eyebrow">
+      Fi&#537;&#259; service
+    </span>
+
+    <h1>
+      #<%= fisa.id %> &middot; <%= numeClient %>
+    </h1>
+
+    <div class="flag-list">
+      <% if (fisa.este_garantie) { %>
+        <span class="flag warranty">
+          Caz &#238;n garan&#539;ie
+        </span>
+      <% } %>
+
+      <% if (fisa.client_dificil) { %>
+        <span class="flag difficult">
+          Client dificil
+        </span>
+      <% } %>
+    </div>
+  </div>
+
+  <span class="badge <%= fisa.status %>">
+    <%= eticheteStatus[fisa.status] || fisa.status %>
+  </span>
+</div>
+
+<div class="page-actions">
+  <a class="button primary" href="/fise/<%= fisa.id %>/garantie">
+    Emite certificat de garan&#539;ie
+  </a>
+  <a class="button ghost" href="/documente-service/fisa/<%= fisa.id %>/deviz">
+    Generează deviz
+  </a>
+  <a class="button ghost" href="/documente-service/fisa/<%= fisa.id %>/constatare">
+    Generează constatare
+  </a>
+</div>
+
+<div class="two-columns detail-grid">
+  <section class="panel">
+    <h2>Date client</h2>
+
+    <dl>
+      <dt>Nume</dt>
+      <dd><%= numeClient %></dd>
+
+      <dt>Telefon</dt>
+      <dd><%= fisa.telefon || '\u2014' %></dd>
+
+      <dt>Email</dt>
+      <dd><%= fisa.email || '\u2014' %></dd>
+
+      <dt>Adres&#259; client</dt>
+      <dd>
+        <%= fisa.adresa_client || '\u2014' %>
+      </dd>
+    </dl>
+  </section>
+
+  <section class="panel">
+    <h2>Televizor</h2>
+
+    <dl>
+      <dt>Marc&#259; / model</dt>
+      <dd>
+        <%= [fisa.marca, fisa.model]
+          .filter(Boolean)
+          .join(' ') || '\u2014'
+        %>
+      </dd>
+
+      <dt>Diagonal&#259; / tip</dt>
+      <dd>
+        <%= [
+          fisa.diagonala
+            ? `${fisa.diagonala}\u2033`
+            : null,
+          fisa.tip_tv
+        ].filter(Boolean).join(' \u00b7 ') ||
+          '\u2014'
+        %>
+      </dd>
+
+      <dt>Serie</dt>
+      <dd><%= fisa.serie || '\u2014' %></dd>
+
+      <dt>Cod produs</dt>
+      <dd>
+        <%= fisa.cod_produs || '\u2014' %>
+      </dd>
+
+      <dt>Alte coduri</dt>
+      <dd>
+        <%= fisa.alte_coduri || '\u2014' %>
+      </dd>
+    </dl>
+  </section>
+
+  <form
+    method="post"
+    action="/fise/<%= fisa.id %>/status"
+    class="panel full-width edit-service-form"
+  >
+    <div class="panel-title">
+      <h2>Editare fi&#537;&#259;</h2>
+
+      <span class="form-hint">
+        C&#226;mpurile goale vor fi salvate f&#259;r&#259; valoare.
+      </span>
+    </div>
+
+    <div class="form-grid">
+      <label class="field field-wide">
+        <span>Defect reclamat</span>
+
+        <textarea
+          name="defect_reclamat"
+          rows="3"
+        ><%= fisa.defect_reclamat || '' %></textarea>
+      </label>
+
+      <label class="field field-wide">
+        <span>Defect estimat</span>
+
+        <textarea
+          name="defect_estimat"
+          rows="3"
+        ><%= fisa.defect_estimat || '' %></textarea>
+      </label>
+
+      <label class="field">
+        <span>Data program&#259;rii</span>
+
+        <input
+          type="date"
+          name="data_programare"
+          value="<%= dataPentruInput(fisa.data_programare) %>"
+        >
+      </label>
+
+      <label class="field">
+        <span>Ora program&#259;rii</span>
+
+        <input
+          type="time"
+          name="ora_programare"
+          value="<%= fisa.ora_programare
+            ? String(fisa.ora_programare).slice(0, 5)
+            : ''
+          %>"
+        >
+      </label>
+
+      <label class="field field-wide">
+        <span>Adres&#259; interven&#539;ie</span>
+
+        <input
+          type="text"
+          name="adresa_interventie"
+          value="<%= fisa.adresa_interventie || '' %>"
+        >
+      </label>
+
+      <label class="field">
+        <span>Pre&#539; estimat</span>
+
+        <input
+          type="number"
+          name="pret_estimat"
+          min="0"
+          step="0.01"
+          value="<%= fisa.pret_estimat ?? '' %>"
+        >
+      </label>
+
+      <label class="field">
+        <span>Pre&#539; agreat</span>
+
+        <input
+          type="number"
+          name="pret_agreat"
+          min="0"
+          step="0.01"
+          value="<%= fisa.pret_agreat ?? '' %>"
+        >
+      </label>
+
+      <label class="field field-wide">
+        <span>Observa&#539;ii</span>
+
+        <textarea
+          name="observatii"
+          rows="4"
+        ><%= fisa.observatii || '' %></textarea>
+      </label>
+
+      <label class="field">
+        <span>Status fi&#537;&#259;</span>
+
+        <select name="status">
+          <% [
+            'noua',
+            'in_asteptare',
+            'confirmata',
+            'in_lucru',
+            'finalizata',
+            'anulata'
+          ].forEach(status => { %>
+            <option
+              value="<%= status %>"
+              <%= fisa.status === status
+                ? 'selected'
+                : ''
+              %>
+            >
+              <%= eticheteStatus[status] %>
+            </option>
+          <% }) %>
+        </select>
+      </label>
+
+      <div class="field checkbox-group">
+        <span>Marcaje</span>
+
+        <label class="checkbox-row">
+          <input
+            type="checkbox"
+            name="este_garantie"
+            value="1"
+            <%= fisa.este_garantie
+              ? 'checked'
+              : ''
+            %>
+          >
+
+          <span>Caz &#238;n garan&#539;ie</span>
+        </label>
+
+        <label class="checkbox-row">
+          <input
+            type="checkbox"
+            name="client_dificil"
+            value="1"
+            <%= fisa.client_dificil
+              ? 'checked'
+              : ''
+            %>
+          >
+
+          <span>Client dificil</span>
+        </label>
+      </div>
+    </div>
+
+    <button
+      class="button primary save-service-button"
+      type="submit"
+    >
+      Salveaz&#259; modific&#259;rile
+    </button>
+  </form>
+</div>
+
+<section class="panel">
+  <h2>Ultimele conversa&#539;ii</h2>
+
+  <div class="chat">
+    <% if (!conversatii.length) { %>
+      <p class="empty">
+        Nu exist&#259; conversa&#539;ii pentru acest client.
+      </p>
+    <% } %>
+
+    <% conversatii.slice().reverse().forEach(row => { %>
+      <div class="bubble <%= row.directie %>">
+        <small>
+          <%= row.directie %> &middot;
+
+          <%= new Intl.DateTimeFormat('ro-RO', {
+            dateStyle: 'short',
+            timeStyle: 'short'
+          }).format(new Date(row.created_at)) %>
+        </small>
+
+        <p class="conversation-message">
+          <%= row.tip === 'image'
+            ? '\uD83D\uDCF7 '
+            : ''
+          %><%= formatConversationMessage(row) %>
+        </p>
+      </div>
+    <% }) %>
+  </div>
+</section>
+
+<% if (saved) { %>
+  <script nonce="<%= cspNonce %>">
+    window.setTimeout(() => {
+      document.getElementById('save-toast')?.remove();
+    }, 4000);
+  </script>
+<% } %>
+
+<%- include('partials/footer') %>

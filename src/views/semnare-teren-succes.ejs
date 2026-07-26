@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="ro">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Document semnat — Mozy Service</title>
+  <style nonce="<%= cspNonce %>">
+    body{margin:0;background:#f4f7fb;color:#172033;font-family:system-ui,sans-serif}
+    main{max-width:680px;margin:70px auto;padding:20px}
+    section{background:#fff;border:1px solid #dbe3ef;border-radius:16px;padding:28px;box-shadow:0 8px 28px rgba(16,24,40,.07)}
+    h1{margin-top:0;color:#067647}p{line-height:1.55;color:#526173}
+  </style>
+  <meta name="csrf-token" content="<%= csrfToken %>">
+</head>
+<body>
+  <main>
+    <% if (field.este_test) { %>
+      <div class="card">
+        <strong>DOCUMENT DE TEST – FĂRĂ VALOARE</strong>
+      </div>
+    <% } %>
+    <section>
+      <h1>Document semnat</h1>
+      <p>
+        Procesul-verbal <strong><%= field.numar_interventie %></strong>
+        a fost înregistrat.
+      </p>
+      <p>
+        Copia PDF a fost trimisă la numărul de WhatsApp comunicat.
+        Puteți închide această pagină.
+      </p>
+    </section>
+  </main>
+  <script src="/app.js" defer></script>
+</body>
+</html>

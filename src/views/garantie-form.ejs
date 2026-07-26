@@ -1,0 +1,144 @@
+<%- include('partials/header', { title: 'Emitere garan\u021bie \u2014 Mozy CRM', active }) %>
+
+<div class="page-heading">
+  <div>
+    <span class="eyebrow"><%= sourceLabel %></span>
+    <h1>Emitere certificat de garan&#539;ie</h1>
+  </div>
+  <a class="button ghost" href="<%= backUrl %>">&#206;napoi</a>
+</div>
+
+<% if (fisa.este_test) { %>
+  <div class="test-mode-banner">
+    <strong>GARANȚIE DE TEST – FĂRĂ VALOARE</strong>
+    <span>
+      Certificatul va folosi seria TEST-GAR și poate fi șters
+      împreună cu testul.
+    </span>
+  </div>
+<% } %>
+
+<% if (error) { %>
+  <div class="alert error"><%= error %></div>
+<% } %>
+
+<% if (String(typeof created !== 'undefined' ? created : '') !== '') { %>
+  <div class="save-toast">Certificatul a fost generat cu succes.</div>
+<% } %>
+
+<% if (!isReception || !certificates.length) { %>
+<form method="post" action="<%= formAction %>" class="warranty-form">
+  <section class="panel">
+    <h2>1. Date client</h2>
+    <div class="form-grid">
+      <label>Nume client
+        <input name="nume_client" value="<%= fisa.nume_client ?? fisa.nume ?? '' %>">
+      </label>
+      <label>Telefon
+        <input name="telefon" required value="<%= fisa.telefon ?? '' %>">
+      </label>
+      <label class="full">Adres&#259; / localitate
+        <input name="adresa_client" value="<%= fisa.adresa_client ?? fisa.adresa ?? '' %>">
+      </label>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>2. Echipament</h2>
+    <div class="form-grid">
+      <label>Tip echipament
+        <input name="tip_echipament" value="<%= fisa.tip_echipament ?? fisa.tip_tv ?? 'Televizor' %>">
+      </label>
+      <label>Marc&#259;
+        <input name="marca" value="<%= fisa.marca ?? '' %>">
+      </label>
+      <label>Model
+        <input name="model" value="<%= fisa.model ?? '' %>">
+      </label>
+      <label>Serie
+        <input name="serie" value="<%= fisa.serie ?? '' %>">
+      </label>
+      <label class="full">Cod produs
+        <input name="cod_produs" value="<%= fisa.cod_produs ?? '' %>">
+      </label>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>3. Lucrarea efectuat&#259;</h2>
+    <div class="form-grid">
+      <label class="full">Defect reclamat
+        <textarea name="defect_reclamat" rows="3"><%= fisa.defect_reclamat ?? '' %></textarea>
+      </label>
+      <label class="full">Interven&#539;ie efectuat&#259;
+        <textarea name="interventie_efectuata" rows="4" required></textarea>
+      </label>
+      <label class="full">Piese / componente
+        <textarea name="piese_componente" rows="3"></textarea>
+      </label>
+      <label>Pre&#539; lucrare (lei)
+        <input name="pret_lucrare" type="number" min="0" step="0.01" value="<%= fisa.pret_agreat ?? fisa.pret_estimat ?? '' %>">
+      </label>
+      <label>Durata garan&#539;iei
+        <select name="durata_luni" required>
+          <% durations.forEach(duration => { %>
+            <option value="<%= duration %>" <%= duration === 6 ? 'selected' : '' %>><%= duration %> luni</option>
+          <% }) %>
+        </select>
+      </label>
+    </div>
+  </section>
+
+  <section class="panel warranty-actions">
+    <p>Num&#259;rul certificatului, data emiterii, data &#238;ceperii &#537;i data expir&#259;rii vor fi completate automat.</p>
+    <button class="button primary" type="submit">Emite certificatul</button>
+  </section>
+</form>
+<% } %>
+
+<% if (certificates.length) { %>
+  <section class="panel">
+    <h2>Certificate emise pentru aceast&#259; fi&#537;&#259;</h2>
+    <div class="certificate-list">
+      <% certificates.forEach(certificate => { %>
+        <div class="certificate-row">
+          <div>
+            <strong><%= certificate.numar_certificat %></strong>
+            <small>
+              Emis la <%= new Intl.DateTimeFormat('ro-RO').format(new Date(certificate.data_emiterii)) %>
+              &middot; <%= certificate.durata_luni %> luni
+              &middot; expir&#259; la <%= new Intl.DateTimeFormat('ro-RO').format(new Date(certificate.data_expirarii)) %>
+            </small>
+          </div>
+          <div class="page-actions">
+            <a class="button ghost" href="/garantii/<%= certificate.id %>/pdf">
+              Descarc&#259; PDF
+            </a>
+            <form method="post" action="/garantii/<%= certificate.id %>/trimite">
+              <button class="button primary" type="submit">
+                <%= certificate.trimisa_la ? 'Retrimite pe WhatsApp' : 'Trimite pe WhatsApp' %>
+              </button>
+            </form>
+          </div>
+          <% if (certificate.trimisa_la) { %>
+            <small>
+              Trimis la
+              <%= new Intl.DateTimeFormat('ro-RO', {
+                dateStyle: 'medium',
+                timeStyle: 'short',
+                timeZone: 'Europe/Bucharest'
+              }).format(new Date(certificate.trimisa_la)) %>
+            </small>
+          <% } %>
+          <% if (certificate.eroare_trimitere) { %>
+            <small class="form-error">
+              Ultima trimitere a e&#537;uat. Po&#539;i &#238;ncerca din nou.
+            </small>
+          <% } %>
+        </div>
+      <% }) %>
+    </div>
+  </section>
+<% } %>
+
+<%- include('partials/footer') %>

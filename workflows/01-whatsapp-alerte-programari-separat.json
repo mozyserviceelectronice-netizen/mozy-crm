@@ -1,0 +1,777 @@
+{
+  "name": "Mozy WhatsApp - Alerte si programari separate",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "whatsapp",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -2928,
+        -16
+      ],
+      "id": "72b51ee4-4e3d-43f4-b69d-3eee31fddbfe",
+      "name": "Webhook",
+      "webhookId": "e1ddfb33-8dc9-466a-bf6e-0be005c176aa"
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $json.choices?.[0]?.message?.content ?? \"\";\n\nif (!raw) {\n  throw new Error(\"OpenAI nu a returnat conținut.\");\n}\n\nlet parsed;\n\ntry {\n  parsed = JSON.parse(raw);\n} catch (error) {\n  throw new Error(\n    `Răspunsul OpenAI nu este JSON valid: ${error.message}\\nRăspuns primit: ${raw}`\n  );\n}\n\nreturn [\n  {\n    json: parsed\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1344,
+        -128
+      ],
+      "id": "5517abe8-beac-45bf-9f25-0ccaf9e74d61",
+      "name": "Parse OpenAI JSON"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer REPLACE_WITH_ROTATED_OPENAI_KEY"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{\n({\n  model: \"gpt-4o-mini\",\n  temperature: 0,\n  messages: [\n    {\n      role: \"system\",\n      content: \"Extrage informațiile de pe eticheta televizorului. Răspunde exclusiv cu JSON valid, fără markdown și fără explicații.\"\n    },\n    {\n      role: \"user\",\n      content: [\n        {\n          type: \"text\",\n          text: \"Analizează fotografia și extrage doar informațiile vizibile. Returnează cheile: marca, model, serie, cod_produs, tip_tv, diagonala, cod_placa, alte_coduri, observatii. Pentru informațiile care nu sunt vizibile folosește șir gol.\"\n        },\n        {\n          type: \"image_url\",\n          image_url: {\n            url: $json.image_data_url,\n            detail: \"high\"\n          }\n        }\n      ]\n    }\n  ]\n})\n}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -1536,
+        -128
+      ],
+      "id": "c9874fa2-06be-4155-a37b-df6b73f8fa10",
+      "name": "HTTP Request OpenAI"
+    },
+    {
+      "parameters": {
+        "jsCode": "const base64 = $json.base64 ?? \"\";\nconst mimetype = $json.mimetype ?? \"image/jpeg\";\nconst fileName = $json.fileName ?? \"tv-label.jpg\";\n\nif (!base64) {\n  throw new Error(\"Nu există base64 în input.\");\n}\n\nreturn [\n  {\n    json: {\n      ok: true,\n      fileName,\n      mimetype,\n      image_data_url: `data:${mimetype};base64,${base64}`\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1728,
+        -144
+      ],
+      "id": "678a853d-89e1-4043-8df4-8929cd125b93",
+      "name": "Prepare Image"
+    },
+    {
+      "parameters": {
+        "method": "=POST",
+        "url": "={{ $json.evolution.server_url + '/chat/getBase64FromMediaMessage/' + $json.evolution.instance }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "={{ $json.evolution.apikey }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{\n  {\n    message: {\n      key: {\n        id: $json.evolution.messageId\n      }\n    },\n    convertToMp4: false\n  }\n}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -1904,
+        -144
+      ],
+      "id": "22fa5c69-65af-4871-b290-88559c6cd50e",
+      "name": "HTTP Request Evolution"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $json.body ?? {};\nconst data = body.data ?? {};\nconst key = data.key ?? {};\nconst msg = data.message ?? {};\n\nconst image = msg.imageMessage ?? null;\nconst video = msg.videoMessage ?? null;\nconst audio = msg.audioMessage ?? null;\nconst document = msg.documentMessage ?? null;\nconst sticker = msg.stickerMessage ?? null;\n\nconst remoteJid = key.remoteJid ?? '';\n\nconst telefon = remoteJid\n  .replace('@s.whatsapp.net', '')\n  .replace('@g.us', '');\n\nconst fromMe = key.fromMe === true;\n\nconst directie = fromMe\n  ? 'outgoing'\n  : 'incoming';\n\nlet tip = 'necunoscut';\n\nif (image) {\n  tip = 'image';\n} else if (video) {\n  tip = 'video';\n} else if (audio) {\n  tip = 'audio';\n} else if (document) {\n  tip = 'document';\n} else if (sticker) {\n  tip = 'sticker';\n} else if (\n  msg.conversation ||\n  msg.extendedTextMessage?.text\n) {\n  tip = 'text';\n}\n\nconst mesaj =\n  msg.conversation ??\n  msg.extendedTextMessage?.text ??\n  image?.caption ??\n  video?.caption ??\n  document?.caption ??\n  '';\n\nconst media =\n  image ??\n  video ??\n  audio ??\n  document ??\n  sticker ??\n  null;\n\nreturn [\n  {\n    json: {\n      event: body.event ?? '',\n      telefon,\n      nume: data.pushName ?? '',\n      directie,\n      tip,\n      mesaj,\n\n      media: media\n        ? {\n            mediaType: tip,\n            url: media.url ?? '',\n            mimetype: media.mimetype ?? '',\n            fileLength: media.fileLength ?? '',\n            mediaKey: media.mediaKey ?? '',\n            directPath: media.directPath ?? '',\n            fileName: media.fileName ?? '',\n            seconds: media.seconds ?? null,\n            width: media.width ?? null,\n            height: media.height ?? null\n          }\n        : null,\n\n      metadata: {\n        messageId: key.id ?? '',\n        remoteJid,\n        fromMe,\n        timestamp: data.messageTimestamp ?? null,\n        source: data.source ?? ''\n      },\n\n      evolution: {\n        instance: body.instance ?? '',\n        server_url: body.server_url ?? '',\n        apikey: body.apikey ?? '',\n        messageId: key.id ?? ''\n      }\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -2704,
+        -32
+      ],
+      "id": "0cfaaf67-cd45-4555-b664-624ed09dbec7",
+      "name": "Code"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.tip }}",
+                    "rightValue": "image",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "51430785-72fd-4069-884e-fc099c2e4607"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "image"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "904acce1-1b50-45a4-8a77-03e3fc66d1e3",
+                    "leftValue": "={{ $json.tip }}",
+                    "rightValue": "video",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "video"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "e8b9dbac-ae23-41d9-8fcb-e9449e7236d7",
+                    "leftValue": "={{ $json.tip }}",
+                    "rightValue": "text",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "text"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "6d5e12a3-9d3e-4f0f-a286-cd30e2761852",
+                    "leftValue": "={{ $json.tip }}",
+                    "rightValue": "document",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "document"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "3a98e575-00dd-44e6-bb37-87f3fed824c9",
+                    "leftValue": "={{ $json.tip }}",
+                    "rightValue": "audio",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "audio"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.4,
+      "position": [
+        -2064,
+        -16
+      ],
+      "id": "21c999d5-57bc-4b3d-aa10-a537213a2765",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "jsCode": "return [\n  {\n    json: $json\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -1456,
+        224
+      ],
+      "id": "dd4968b1-7e11-4d63-b9d2-9d62cfd800f2",
+      "name": "Text Output"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        -2448,
+        -240
+      ],
+      "id": "0639fe4a-862e-42a6-a77e-bef9454adc40",
+      "name": "Merge"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO whatsapp.mesaje (\n  contact_id,\n  directie,\n  tip,\n  mesaj,\n  message_id,\n  necesita_raspuns,\n  alerta_trimisa\n)\nVALUES ($1, $2, $3, $4, $5, false, false)\nON CONFLICT (message_id)\nDO NOTHING\nRETURNING *;",
+        "options": {
+          "queryReplacement": "={{ [$json.id, $json.directie, $json.tip, $json.mesaj, $json.evolution?.messageId] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -1184,
+        80
+      ],
+      "id": "6b6bf11e-d803-4689-b362-7fee08ccce77",
+      "name": "Execute a SQL query1",
+      "credentials": {
+        "postgres": {
+          "id": "7MLsduEbzQLaYaC3",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO whatsapp.mesaje (\n  contact_id,\n  directie,\n  tip,\n  mesaj,\n  message_id,\n  necesita_raspuns,\n  alerta_trimisa\n)\nVALUES ($1, $2, $3, $4, $5, false, false)\nON CONFLICT (message_id)\nDO NOTHING\nRETURNING *;",
+        "options": {
+          "queryReplacement": "={{ [$('Merge').first().json.id, 'incoming', 'image', JSON.stringify($json), $('Code').first().json.evolution.messageId] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -1184,
+        -128
+      ],
+      "id": "8778a691-e090-4807-87a1-5a0005c81a42",
+      "name": "Execute a SQL query2",
+      "credentials": {
+        "postgres": {
+          "id": "7MLsduEbzQLaYaC3",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  m.id,\n  m.contact_id AS client_id,\n  m.directie,\n  m.tip,\n  m.mesaj,\n  NULL::text AS media_url,\n  m.message_id,\n  m.created_at\nFROM (\n  SELECT *\n  FROM whatsapp.mesaje\n  WHERE contact_id = $1\n  ORDER BY created_at DESC, id DESC\n  LIMIT 30\n) m\nORDER BY m.created_at ASC, m.id ASC;",
+        "options": {
+          "queryReplacement": "={{ [\n$('Merge').first().json.id\n] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -960,
+        80
+      ],
+      "id": "de30f8f0-575d-4dfa-ab52-0177114e8f12",
+      "name": "Get Conversation History",
+      "credentials": {
+        "postgres": {
+          "id": "7MLsduEbzQLaYaC3",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "SELECT\n  m.id,\n  m.contact_id AS client_id,\n  m.directie,\n  m.tip,\n  m.mesaj,\n  NULL::text AS media_url,\n  m.message_id,\n  m.created_at\nFROM (\n  SELECT *\n  FROM whatsapp.mesaje\n  WHERE contact_id = $1\n  ORDER BY created_at DESC, id DESC\n  LIMIT 30\n) m\nORDER BY m.created_at ASC, m.id ASC;",
+        "options": {
+          "queryReplacement": "={{ [\n$('Merge').first().json.id\n] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -976,
+        -128
+      ],
+      "id": "9bddcee8-937a-4d9e-bf67-dd5d8183121d",
+      "name": "Get conversation history 2",
+      "credentials": {
+        "postgres": {
+          "id": "7MLsduEbzQLaYaC3",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\n\nif (items.length === 0) {\n  throw new Error('Istoricul conversației este gol.');\n}\n\nconst conversatii = items\n  .map(item => item.json)\n  .sort((a, b) => {\n    const dataA = new Date(a.created_at).getTime();\n    const dataB = new Date(b.created_at).getTime();\n\n    if (dataA !== dataB) {\n      return dataA - dataB;\n    }\n\n    return Number(a.id) - Number(b.id);\n  });\n\nconst clientId = conversatii[0].client_id;\n\nif (!clientId) {\n  throw new Error(\n    'client_id lipsește din istoricul conversației.'\n  );\n}\n\nconst parseVision = (mesaj) => {\n  if (typeof mesaj !== 'string') {\n    return null;\n  }\n\n  try {\n    const rezultat = JSON.parse(mesaj);\n\n    if (\n      rezultat &&\n      typeof rezultat === 'object' &&\n      (\n        rezultat.marca ||\n        rezultat.model ||\n        rezultat.serie ||\n        rezultat.cod_produs ||\n        rezultat.tip_tv ||\n        rezultat.diagonala ||\n        rezultat.cod_placa ||\n        rezultat.alte_coduri\n      )\n    ) {\n      return rezultat;\n    }\n  } catch {\n    return null;\n  }\n\n  return null;\n};\n\nconst istoric = conversatii.map(conversatie => {\n  const vision = conversatie.tip === 'image'\n    ? parseVision(conversatie.mesaj)\n    : null;\n\n  return {\n    id: conversatie.id,\n    message_id: conversatie.message_id ?? null,\n    directie: conversatie.directie,\n    tip: conversatie.tip,\n    mesaj: vision\n      ? '[Rezultat analiză imagine TV]'\n      : conversatie.mesaj,\n    vision,\n    data: conversatie.created_at\n  };\n});\n\nconst rezultateVision = istoric\n  .filter(conversatie => conversatie.vision)\n  .map(conversatie => ({\n    conversation_id: conversatie.id,\n    message_id: conversatie.message_id,\n    data: conversatie.data,\n    ...conversatie.vision\n  }));\n\nconst ultimulMesaj = istoric[istoric.length - 1];\n\nif (!ultimulMesaj) {\n  throw new Error(\n    'Nu a putut fi identificat ultimul mesaj.'\n  );\n}\n\nreturn [\n  {\n    json: {\n      client_id: clientId,\n      timezone: 'Europe/Bucharest',\n      data_analizei: new Date().toISOString(),\n      numar_mesaje_context: istoric.length,\n      mesaj_nou: ultimulMesaj,\n      rezultate_vision: rezultateVision,\n      istoric_conversatie: istoric\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -672,
+        -32
+      ],
+      "id": "cee14a22-279f-4601-b812-6dd320cb53e5",
+      "name": "Prepare AI Context"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer REPLACE_WITH_ROTATED_OPENAI_KEY"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{\n  {\n    model: \"gpt-4.1-mini\",\n    temperature: 0,\n    response_format: {\n      type: \"json_schema\",\n      json_schema: {\n        name: \"mozy_crm_extraction\",\n        strict: true,\n        schema: {\n          type: \"object\",\n          additionalProperties: false,\n          properties: {\n            client: {\n              type: \"object\",\n              additionalProperties: false,\n              properties: {\n                nume: {\n                  type: [\"string\", \"null\"]\n                },\n                email: {\n                  type: [\"string\", \"null\"]\n                },\n                adresa: {\n                  type: [\"string\", \"null\"]\n                }\n              },\n              required: [\n                \"nume\",\n                \"email\",\n                \"adresa\"\n              ]\n            },\n            televizor: {\n              type: \"object\",\n              additionalProperties: false,\n              properties: {\n                marca: {\n                  type: [\"string\", \"null\"]\n                },\n                model: {\n                  type: [\"string\", \"null\"]\n                },\n                serie: {\n                  type: [\"string\", \"null\"]\n                },\n                cod_produs: {\n                  type: [\"string\", \"null\"]\n                },\n                diagonala: {\n                  type: [\"string\", \"null\"]\n                },\n                cod_placa: {\n                  type: [\"string\", \"null\"]\n                },\n                alte_coduri: {\n                  type: [\"string\", \"null\"]\n                },\n                tip_tv: {\n                  type: [\"string\", \"null\"]\n                }\n              },\n              required: [\n                \"marca\",\n                \"model\",\n                \"serie\",\n                \"cod_produs\",\n                \"diagonala\",\n                \"cod_placa\",\n                \"alte_coduri\",\n                \"tip_tv\"\n              ]\n            },\n            fisa_service: {\n              type: \"object\",\n              additionalProperties: false,\n              properties: {\n                defect_reclamat: {\n                  type: [\"string\", \"null\"]\n                },\n                defect_estimat: {\n                  type: [\"string\", \"null\"]\n                },\n                pret_estimat: {\n                  type: [\"number\", \"null\"]\n                },\n                pret_agreat: {\n                  type: [\"number\", \"null\"]\n                },\n                data_programare: {\n                  type: [\"string\", \"null\"]\n                },\n                ora_programare: {\n                  type: [\"string\", \"null\"]\n                },\n                adresa_interventie: {\n                  type: [\"string\", \"null\"]\n                },\n                observatii: {\n                  type: [\"string\", \"null\"]\n                },\n                status: {\n                  type: \"string\",\n                  enum: [\n                    \"nespecificat\",\n                    \"in_asteptare\",\n                    \"confirmata\",\n                    \"anulata\"\n                  ]\n                }\n              },\n              required: [\n                \"defect_reclamat\",\n                \"defect_estimat\",\n                \"pret_estimat\",\n                \"pret_agreat\",\n                \"data_programare\",\n                \"ora_programare\",\n                \"adresa_interventie\",\n                \"observatii\",\n                \"status\"\n              ]\n            },\n            control: {\n              type: \"object\",\n              additionalProperties: false,\n              properties: {\n                exista_informatii_client: {\n                  type: \"boolean\"\n                },\n                exista_informatii_televizor: {\n                  type: \"boolean\"\n                },\n                exista_informatii_fisa: {\n                  type: \"boolean\"\n                },\n                necesita_raspuns: {\n                  type: \"boolean\"\n                },\n                televizor_diferit_detectat: {\n                  type: \"boolean\"\n                },\n                necesita_verificare_umana: {\n                  type: \"boolean\"\n                },\n                motiv_verificare: {\n                  type: [\"string\", \"null\"]\n                },\n                incredere: {\n                  type: \"number\",\n                  minimum: 0,\n                  maximum: 1\n                }\n              },\n              required: [\n                \"exista_informatii_client\",\n                \"exista_informatii_televizor\",\n                \"exista_informatii_fisa\",\n                \"necesita_raspuns\",\n                \"televizor_diferit_detectat\",\n                \"necesita_verificare_umana\",\n                \"motiv_verificare\",\n                \"incredere\"\n              ]\n            }\n          },\n          required: [\n            \"client\",\n            \"televizor\",\n            \"fisa_service\",\n            \"control\"\n          ]\n        }\n      }\n    },\n    messages: [\n      {\n        role: \"system\",\n        content: `Ești operatorul intern AI al Mozy Service Electronice.\n\nAnalizezi conversații WhatsApp și rezultate Vision pentru completarea CRM-ului și pentru stabilirea necesității unui răspuns uman.\n\nNu răspunzi clientului.\nNu inventezi informații.\nNu transformi presupunerile tehnice în fapte.\nOrice informație necunoscută trebuie returnată null.\n\nReguli:\n\n1. Extrage numai informații afirmate de client sau identificate explicit de Vision.\n\n2. Pentru defect_reclamat, rezumă fidel simptomele descrise de client.\n\n3. defect_estimat rămâne null dacă nu există o concluzie tehnică explicită.\n\n4. Nu inventa prețuri.\n\n5. Interpretează date precum „mâine” folosind data_analizei și fusul Europe/Bucharest.\n\n6. data_programare trebuie să fie în format YYYY-MM-DD.\n\n7. ora_programare trebuie să fie în format HH:MM:SS.\n\n8. Formularea „după ora 17” se salvează ca ora_programare 17:00:00, iar caracterul aproximativ se menționează în observatii.\n\n9. Statusul confirmata se folosește numai dacă sunt îndeplinite simultan toate condițiile următoare:\n- clientul a acceptat explicit programarea;\n- data_programare este cunoscută și nu este null;\n- ora_programare este cunoscută și nu este null.\n\n10. Dacă clientul acceptă vizita, dar data sau ora nu este stabilită, status trebuie să fie in_asteptare, nu confirmata.\n\n11. Dacă lipsește data_programare sau ora_programare, iar programarea necesită completare ori confirmare din partea operatorului, setează necesita_raspuns=true.\n\n12. Nu inventa niciodată ora programării.\n\n13. Formulări generale precum „dimineața”, „după-amiază”, „spre seară”, „în cursul zilei” sau „când puteți” nu reprezintă o oră exactă. În aceste cazuri:\n- ora_programare trebuie să fie null;\n- status trebuie să fie in_asteptare;\n- necesita_raspuns trebuie să fie true.\n\n14. Dacă operatorul a propus anterior în conversație o dată și o oră exacte, iar clientul le acceptă explicit, preia acea dată și oră din istoricul conversației și setează status confirmata.\n\n15. O simplă disponibilitate, precum „pot mâine după 17”, înseamnă in_asteptare, nu confirmata.\n\n16. Formulări precum „mă mai gândesc” înseamnă in_asteptare.\n\n17. Formulări precum „nu mai vreau”, „anulați” sau echivalente înseamnă anulata.\n\n18. Dacă nu se discută programarea, status trebuie să fie nespecificat.\n\n19. Nu combina datele unor televizoare diferite.\n\n20. Dacă istoricul conține mai multe televizoare, separă-le cronologic și nu combina datele lor.\n\n21. Un mesaj text trimis după o imagine cu eticheta unui televizor se referă la televizorul din cea mai recentă imagine, dacă textul nu menționează explicit un alt aparat.\n\n22. Dacă cea mai recentă imagine identifică un televizor, iar mesajele ulterioare descriu defectul, adresa sau disponibilitatea, consideră că aceste informații aparțin televizorului din cea mai recentă imagine.\n\n23. Simplul fapt că în istoricul mai vechi există alt televizor nu justifică necesita_verificare_umana=true, dacă secvența recentă este coerentă.\n\n24. Dacă mesajul nou menționează explicit un model, o marcă, o serie sau un cod de produs, acordă prioritate acestor informații pentru identificarea televizorului relevant.\n\n25. Setează necesita_verificare_umana=true numai dacă există o ambiguitate reală în secvența recentă, informații contradictorii sau nu se poate determina cărui televizor îi aparține mesajul nou.\n\n26. televizor_diferit_detectat trebuie să fie true dacă secvența recentă introduce un televizor diferit de aparatul discutat anterior. Acest lucru nu presupune automat că este necesară verificarea umană.\n\n27. Șirurile goale din Vision trebuie tratate ca informații necunoscute și returnate null.\n\n28. Nu folosi valorile textuale „empty”, „necunoscut”, „nespecificat” sau șiruri goale în locul valorii null, exceptând câmpul status, unde nespecificat este o valoare permisă.\n\n29. Câmpul necesita_raspuns se stabilește analizând în primul rând ultimul mesaj incoming și contextul imediat în care a fost trimis.\n\n30. Setează necesita_raspuns=true dacă ultimul mesaj incoming solicită informații, programare, intervenție, confirmare, ofertă, diagnostic, garanție, documente, statusul reparației sau orice altă acțiune din partea operatorului.\n\n31. Setează necesita_raspuns=true dacă ultimul mesaj incoming conține informații noi necesare continuării solicitării, precum modelul televizorului, defectul, adresa, disponibilitatea, date de facturare sau o fotografie solicitată.\n\n32. Setează necesita_raspuns=true pentru întrebări și solicitări reale chiar dacă mesajul nu conține semnul întrebării.\n\n33. Setează necesita_raspuns=false pentru simple formule de încheiere sau confirmări care nu cer o acțiune: „mulțumesc”, „ok”, „am înțeles”, „o zi bună”, emoji de confirmare, „am rezolvat”, „nu mai doresc” sau mesaje echivalente.\n\n34. Dacă mesajul conține atât o formulă de politețe, cât și o întrebare sau solicitare reală, setează necesita_raspuns=true.\n\n35. Pentru o imagine trimisă de client, setează necesita_raspuns=true dacă imaginea furnizează informații necesare continuării solicitării, chiar dacă imaginea nu are text.\n\n36. Dacă ultimul mesaj acceptă explicit o programare propusă anterior, iar istoricul conține deja data și ora exacte și operatorul nu mai trebuie să ofere alte informații, setează status confirmata și necesita_raspuns=false.\n\n37. Dacă ultimul mesaj cere confirmarea programării sau propune o dată ori un interval care nu fusese acceptat anterior, setează necesita_raspuns=true.\n\n38. Dacă clientul acceptă programarea, dar data sau ora exactă lipsește, setează status in_asteptare și necesita_raspuns=true.\n\n39. Un mesaj de anulare sau refuz final, precum „nu mai vreau”, nu necesită răspuns operațional și trebuie să aibă necesita_raspuns=false, chiar dacă statusul fișei devine anulata.\n\n40. Dacă există îndoială rezonabilă dacă operatorul trebuie să intervină, setează necesita_raspuns=true pentru a evita pierderea unui client.\n\n41. Înainte de returnarea JSON-ului, verifică obligatoriu:\n- dacă status este confirmata, data_programare trebuie să fie diferită de null;\n- dacă status este confirmata, ora_programare trebuie să fie diferită de null;\n- dacă una dintre acestea lipsește, schimbă status în in_asteptare și setează necesita_raspuns=true.\n\n42. Nu include explicații sau text în afara structurii JSON.`\n      },\n      {\n        role: \"user\",\n        content: JSON.stringify($json)\n      }\n    ]\n  }\n}}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -496,
+        -32
+      ],
+      "id": "154c00ca-6fdc-456a-9d8a-7ab278711236",
+      "name": "OpenAI Appointment Extraction"
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const response = $json;\n\nconst content = response?.choices?.[0]?.message?.content;\n\nif (!content) {\n  throw new Error(\n    'OpenAI nu a returnat campul choices[0].message.content.'\n  );\n}\n\nlet rezultat;\n\ntry {\n  rezultat = JSON.parse(content);\n} catch (error) {\n  throw new Error(\n    `Raspunsul OpenAI nu este JSON valid: ${error.message}`\n  );\n}\n\nconst campuriObligatorii = [\n  'client',\n  'televizor',\n  'fisa_service',\n  'control'\n];\n\nfor (const camp of campuriObligatorii) {\n  if (\n    !Object.prototype.hasOwnProperty.call(rezultat, camp) ||\n    typeof rezultat[camp] !== 'object' ||\n    rezultat[camp] === null\n  ) {\n    throw new Error(\n      `Lipseste obiectul obligatoriu: ${camp}`\n    );\n  }\n}\n\nconst statusuriPermise = [\n  'nespecificat',\n  'in_asteptare',\n  'confirmata',\n  'anulata'\n];\n\nif (!statusuriPermise.includes(rezultat.fisa_service.status)) {\n  throw new Error(\n    `Status AI nepermis: ${rezultat.fisa_service.status}`\n  );\n}\n\nconst valoareSauNull = (valoare) => {\n  if (valoare === undefined || valoare === null) {\n    return null;\n  }\n\n  if (typeof valoare === 'string') {\n    const curatat = valoare.trim();\n    const curatatLower = curatat.toLowerCase();\n\n    if (\n      curatat === '' ||\n      curatatLower === 'null' ||\n      curatatLower === 'empty' ||\n      curatatLower === 'necunoscut'\n    ) {\n      return null;\n    }\n\n    return curatat;\n  }\n\n  return valoare;\n};\n\nconst normalizareObiect = (obiect) => {\n  return Object.fromEntries(\n    Object.entries(obiect).map(([cheie, valoare]) => [\n      cheie,\n      valoareSauNull(valoare)\n    ])\n  );\n};\n\nconst dataCalendaristicaValida = (valoare) => {\n  if (typeof valoare !== 'string') {\n    return false;\n  }\n\n  if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(valoare)) {\n    return false;\n  }\n\n  const data = new Date(`${valoare}T00:00:00Z`);\n\n  return (\n    !Number.isNaN(data.getTime()) &&\n    data.toISOString().slice(0, 10) === valoare\n  );\n};\n\nconst oraValida = (valoare) => {\n  if (typeof valoare !== 'string') {\n    return false;\n  }\n\n  return /^([01]\\d|2[0-3]):[0-5]\\d:[0-5]\\d$/.test(\n    valoare\n  );\n};\n\nconst client = normalizareObiect(rezultat.client);\nconst televizor = normalizareObiect(rezultat.televizor);\nconst fisaService = normalizareObiect(\n  rezultat.fisa_service\n);\n\nconst control = {\n  ...rezultat.control,\n  motiv_verificare: valoareSauNull(\n    rezultat.control.motiv_verificare\n  )\n};\n\nif (\n  fisaService.data_programare !== null &&\n  !dataCalendaristicaValida(\n    fisaService.data_programare\n  )\n) {\n  fisaService.data_programare = null;\n}\n\nif (\n  fisaService.ora_programare !== null &&\n  !oraValida(fisaService.ora_programare)\n) {\n  fisaService.ora_programare = null;\n}\n\nconst programareIncompleta =\n  fisaService.data_programare === null ||\n  fisaService.ora_programare === null;\n\nif (\n  fisaService.status === 'confirmata' &&\n  programareIncompleta\n) {\n  fisaService.status = 'in_asteptare';\n  control.necesita_raspuns = true;\n}\n\nconst context = $('Prepare AI Context').first().json;\n\nif (!context?.client_id) {\n  throw new Error(\n    'Lipseste client_id din Prepare AI Context.'\n  );\n}\n\nif (!context?.mesaj_nou?.id) {\n  throw new Error(\n    'Lipseste ID-ul conversatiei noi.'\n  );\n}\n\nreturn {\n  json: {\n    client_id: context.client_id,\n    conversation_id: context.mesaj_nou.id,\n    message_id:\n      context.mesaj_nou.message_id ?? null,\n\n    client,\n    televizor,\n    fisa_service: fisaService,\n    control,\n\n    meta: {\n      model: response.model ?? null,\n      prompt_tokens:\n        response.usage?.prompt_tokens ?? null,\n      completion_tokens:\n        response.usage?.completion_tokens ?? null,\n      total_tokens:\n        response.usage?.total_tokens ?? null,\n      analizat_la: new Date().toISOString()\n    }\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -288,
+        -32
+      ],
+      "id": "57667df6-bd33-41c4-b997-3a68c9218183",
+      "name": "Parse and Validate Appointment"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "48ea76f0-2ecf-4d70-a28e-e969c3e2f09a",
+              "leftValue": "={{ $json.directie }}",
+              "rightValue": "incoming",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        -2272,
+        -240
+      ],
+      "id": "6695dbe9-ed23-4790-999c-4446ba4bb6cd",
+      "name": "Is Incoming"
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO whatsapp.mesaje (\n  contact_id,\n  directie,\n  tip,\n  mesaj,\n  message_id,\n  necesita_raspuns,\n  alerta_trimisa\n)\nVALUES ($1, 'outgoing', $2, $3, $4, false, false)\nON CONFLICT (message_id)\nDO NOTHING\nRETURNING *;",
+        "options": {
+          "queryReplacement": "={{ [$json.id, $json.tip, $json.mesaj, $json.evolution?.messageId] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -2048,
+        -352
+      ],
+      "id": "7960cb3c-e1ae-4e81-9e4a-c91bc7a64526",
+      "name": "Save Outgoing Conversation",
+      "credentials": {
+        "postgres": {
+          "id": "7MLsduEbzQLaYaC3",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "INSERT INTO whatsapp.contacte (telefon, nume)\nSELECT\n  $1,\n  CASE\n    WHEN $3 = 'incoming'\n     AND LOWER(TRIM(COALESCE($2, ''))) NOT IN (\n       'mozy service electronice',\n       'você'\n     )\n    THEN NULLIF(TRIM($2), '')\n    ELSE NULL\n  END\nWHERE NULLIF(TRIM($1), '') IS NOT NULL\nON CONFLICT (telefon)\nDO UPDATE SET\n  nume = COALESCE(whatsapp.contacte.nume, EXCLUDED.nume),\n  updated_at = CURRENT_TIMESTAMP\nRETURNING *;",
+        "options": {
+          "queryReplacement": "={{ [$json.telefon, $json.nume, $json.directie] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        -2656,
+        288
+      ],
+      "id": "78d8dc40-f920-4ebb-8644-04f69402c7aa",
+      "name": "Upsert WhatsApp Contact",
+      "credentials": {
+        "postgres": {
+          "id": "7MLsduEbzQLaYaC3",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "WITH saved_appointment AS (\n  INSERT INTO whatsapp.programari (\n    contact_id,\n    conversation_message_id,\n    data_programare,\n    ora_programare,\n    adresa,\n    defect_reclamat,\n    marca,\n    model,\n    diagonala,\n    observatii,\n    status,\n    incredere,\n    rezultat_ai\n  )\n  SELECT\n    $1::bigint,\n    $2::bigint,\n    $3::date,\n    $4::time,\n    NULLIF($5::text, ''),\n    NULLIF($6::text, ''),\n    NULLIF($7::text, ''),\n    NULLIF($8::text, ''),\n    NULLIF($9::text, ''),\n    NULLIF($10::text, ''),\n    $11::text,\n    $12::numeric,\n    $13::jsonb\n  WHERE $11::text <> 'nespecificat'\n  ON CONFLICT (conversation_message_id)\n  DO UPDATE SET\n    data_programare = EXCLUDED.data_programare,\n    ora_programare = EXCLUDED.ora_programare,\n    adresa = EXCLUDED.adresa,\n    defect_reclamat = EXCLUDED.defect_reclamat,\n    marca = EXCLUDED.marca,\n    model = EXCLUDED.model,\n    diagonala = EXCLUDED.diagonala,\n    observatii = EXCLUDED.observatii,\n    status = EXCLUDED.status,\n    incredere = EXCLUDED.incredere,\n    rezultat_ai = EXCLUDED.rezultat_ai,\n    updated_at = CURRENT_TIMESTAMP\n  RETURNING id\n)\nUPDATE whatsapp.mesaje\nSET\n  necesita_raspuns = $14::boolean,\n  alerta_trimisa = false\nWHERE id = $2::bigint\nRETURNING id, contact_id, necesita_raspuns, alerta_trimisa;",
+        "options": {
+          "queryReplacement": "={{ [\n  $json.client_id,\n  $json.conversation_id,\n  $json.fisa_service.data_programare,\n  $json.fisa_service.ora_programare,\n  $json.fisa_service.adresa_interventie,\n  $json.fisa_service.defect_reclamat,\n  $json.televizor.marca,\n  $json.televizor.model,\n  $json.televizor.diagonala,\n  $json.fisa_service.observatii,\n  $json.fisa_service.status,\n  $json.control.incredere,\n  JSON.stringify($json),\n  $json.control.necesita_raspuns\n] }}"
+        }
+      },
+      "type": "n8n-nodes-base.postgres",
+      "typeVersion": 2.6,
+      "position": [
+        2640,
+        80
+      ],
+      "id": "separate-save-appointment",
+      "name": "Save Appointment and Response State",
+      "credentials": {
+        "postgres": {
+          "id": "7MLsduEbzQLaYaC3",
+          "name": "Postgres account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request OpenAI": {
+      "main": [
+        [
+          {
+            "node": "Parse OpenAI JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Image": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request OpenAI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request Evolution": {
+      "main": [
+        [
+          {
+            "node": "Prepare Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Upsert WhatsApp Contact",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request Evolution",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [],
+        [
+          {
+            "node": "Text Output",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [],
+        []
+      ]
+    },
+    "Merge": {
+      "main": [
+        [
+          {
+            "node": "Is Incoming",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Text Output": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse OpenAI JSON": {
+      "main": [
+        [
+          {
+            "node": "Execute a SQL query2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query1": {
+      "main": [
+        [
+          {
+            "node": "Get Conversation History",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query2": {
+      "main": [
+        [
+          {
+            "node": "Get conversation history 2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Conversation History": {
+      "main": [
+        [
+          {
+            "node": "Prepare AI Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get conversation history 2": {
+      "main": [
+        [
+          {
+            "node": "Prepare AI Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare AI Context": {
+      "main": [
+        [
+          {
+            "node": "OpenAI Appointment Extraction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Incoming": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Save Outgoing Conversation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upsert WhatsApp Contact": {
+      "main": [
+        [
+          {
+            "node": "Merge",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Parse and Validate Appointment": {
+      "main": [
+        [
+          {
+            "node": "Save Appointment and Response State",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Appointment Extraction": {
+      "main": [
+        [
+          {
+            "node": "Parse and Validate Appointment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "3e525fcd-bca4-4322-9b40-ba7fc16a41a3",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "0739d1da5132411f7037ebafc68a64ccb348c85300b52997ca9cc9b64fd00a51"
+  },
+  "nodeGroups": [],
+  "id": "zrqYzlsVgz19W0ZN",
+  "tags": []
+}

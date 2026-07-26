@@ -1,0 +1,288 @@
+<%
+const eticheteStatus = {
+  primit: 'Primit',
+  in_diagnosticare: 'În diagnosticare',
+  asteapta_acord: 'Așteaptă acord',
+  asteapta_piesa: 'Așteaptă piesă',
+  in_reparatie: 'În reparație',
+  finalizat: 'Finalizat',
+  predat: 'Predat',
+  anulat: 'Anulat'
+};
+
+function numeAfisat(row) {
+  return String(row.nume || '').trim() || 'Client fara nume';
+}
+%>
+
+<%- include('partials/header', {
+  title: 'Receptie atelier - Mozy CRM',
+  active
+}) %>
+
+<div class="page-heading">
+  <div>
+    <span class="eyebrow">Aparate aduse la sediu</span>
+    <h1>Recep&#539;ie atelier</h1>
+  </div>
+
+  <a class="button primary" href="/receptie/noua">
+    Primire aparat
+  </a>
+</div>
+
+<% if (testSters) { %>
+  <div class="reception-message success">
+    Testul și toate datele TEST asociate au fost șterse.
+  </div>
+<% } %>
+
+<section
+  class="panel"
+  data-reception-list
+  data-reception-list-url="<%= returnTo %>"
+>
+  <div class="panel-title">
+    <h2>
+      Fișe recepție
+    </h2>
+
+    <span class="reception-result-summary">
+      <%= totalRows %> <%= totalRows === 1 ? 'rezultat' : 'rezultate' %>
+    </span>
+  </div>
+
+  <div class="reception-filter-scroll">
+    <nav
+      class="reception-filters"
+      aria-label="Filtrare recepții după status"
+    >
+      <% receptionFilterTabs.forEach(tab => { %>
+        <a
+          class="reception-filter-tab <%= selectedStatus === tab.value
+            ? 'reception-filter-tab--active'
+            : ''
+          %>"
+          href="<%= buildReceptionListUrl({
+            status: tab.value,
+            q
+          }) %>"
+          <%- selectedStatus === tab.value
+            ? 'aria-current="page"'
+            : ''
+          %>
+        >
+          <span><%= tab.label %></span>
+          <span
+            class="reception-filter-count"
+            aria-label="<%= counts[tab.value] %> fișe"
+          >
+            <%= counts[tab.value] %>
+          </span>
+        </a>
+      <% }) %>
+    </nav>
+  </div>
+
+  <form class="reception-search" method="get" action="/receptie">
+    <input
+      type="hidden"
+      name="status"
+      value="<%= selectedStatus %>"
+    >
+
+    <label for="reception-search-input">
+      Caută o fișă de recepție
+    </label>
+
+    <div class="reception-search-controls">
+      <input
+        id="reception-search-input"
+        name="q"
+        type="search"
+        value="<%= q %>"
+        maxlength="100"
+        placeholder="Nr. fișă, client, telefon, aparat sau defect"
+        autocomplete="off"
+      >
+
+      <button class="button primary" type="submit">
+        Caută
+      </button>
+
+      <% if (q) { %>
+        <a
+          class="button ghost"
+          href="<%= buildReceptionListUrl({
+            status: selectedStatus
+          }) %>"
+        >
+          Șterge căutarea
+        </a>
+      <% } %>
+    </div>
+
+    <small>
+      Căutarea se aplică filtrului selectat.
+    </small>
+  </form>
+
+  <% if (!rows.length) { %>
+    <div class="reception-empty-state">
+      <strong>
+        <%= q
+          ? 'Nu am găsit fișe care corespund căutării în filtrul selectat.'
+          : `Nu există fișe în categoria „${
+              receptionFilterTabs.find(
+                tab => tab.value === selectedStatus
+              )?.label || 'Active'
+            }”.`
+        %>
+      </strong>
+
+      <% if (q) { %>
+        <a
+          class="button ghost"
+          href="<%= buildReceptionListUrl({
+            status: selectedStatus
+          }) %>"
+        >
+          Șterge căutarea
+        </a>
+      <% } else if (selectedStatus !== 'toate') { %>
+        <a
+          class="button ghost"
+          href="<%= buildReceptionListUrl({ status: 'toate' }) %>"
+        >
+          Vezi toate fișele
+        </a>
+      <% } %>
+
+      <% if (selectedStatus !== 'active') { %>
+        <a
+          class="button ghost"
+          href="<%= buildReceptionListUrl({
+            status: 'active',
+            q
+          }) %>"
+        >
+          Revino la Active
+        </a>
+      <% } %>
+    </div>
+  <% } else { %>
+
+    <div class="reception-list">
+      <% rows.forEach(row => { %>
+        <article class="reception-row">
+          <a
+            class="reception-row-main"
+            href="/receptie/<%= row.id %>?returnTo=<%= encodeURIComponent(returnTo) %>"
+            aria-label="Deschide recepția <%= row.numar_receptie || row.id %>"
+            data-reception-detail-link
+          >
+            <span class="reception-row-content">
+              <strong>
+                <%= row.numar_receptie || `Recepție #${row.id}` %>
+                &mdash; <%= numeAfisat(row) %>
+              </strong>
+
+              <% if (row.sursa_receptie === 'teren') { %>
+                <span class="field-source-badge">
+                  RIDICAT DE PE TEREN
+                </span>
+              <% } %>
+
+              <% if (row.este_test) { %>
+                <span class="test-mode-badge">TEST</span>
+              <% } %>
+
+              <small>
+                <%= [
+                  row.tip_echipament,
+                  row.marca,
+                  row.model
+                ].filter(Boolean).join(' - ') ||
+                  'Echipament neidentificat' %>
+              </small>
+
+              <small>
+                Telefon: <%= row.telefon %>
+                &middot;
+                Primit: <%= row.data_primire_afisata %>
+              </small>
+            </span>
+          </a>
+
+          <div class="reception-row-side">
+            <span class="badge <%= row.status %>">
+              <%= eticheteStatus[row.status] || row.status %>
+            </span>
+
+            <% if (row.semnare_status === 'semnat' && row.pdf_path) { %>
+              <div class="reception-pdf-actions">
+                <a
+                  class="button ghost compact"
+                  href="/receptie/<%= row.id %>/pdf"
+                  target="_blank"
+                  rel="noopener"
+                >
+                  Vezi PDF
+                </a>
+
+                <a
+                  class="button compact"
+                  href="/receptie/<%= row.id %>/pdf?download=1"
+                >
+                  Descarcă
+                </a>
+              </div>
+            <% } %>
+          </div>
+        </article>
+      <% }) %>
+    </div>
+
+    <% if (totalPages > 1) { %>
+      <nav
+        class="reception-pagination"
+        aria-label="Paginare recepții"
+      >
+        <% if (page > 1) { %>
+          <a
+            class="button ghost compact"
+            href="<%= buildReceptionListUrl({
+              status: selectedStatus,
+              q,
+              page: page - 1
+            }) %>"
+            rel="prev"
+          >
+            &larr; Anterioară
+          </a>
+        <% } %>
+
+        <span>
+          Pagina <strong><%= page %></strong> din
+          <strong><%= totalPages %></strong>
+        </span>
+
+        <% if (page < totalPages) { %>
+          <a
+            class="button ghost compact"
+            href="<%= buildReceptionListUrl({
+              status: selectedStatus,
+              q,
+              page: page + 1
+            }) %>"
+            rel="next"
+          >
+            Următoarea &rarr;
+          </a>
+        <% } %>
+      </nav>
+    <% } %>
+  <% } %>
+</section>
+
+<%- include('partials/footer') %>

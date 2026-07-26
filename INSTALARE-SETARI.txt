@@ -1,0 +1,27 @@
+MOZY CRM - SETARI SI UTILIZATORI MULTIPLI v1.0.0
+
+Continut:
+- tab Setari in meniul CRM;
+- creare si listare utilizatori;
+- activare/dezactivare conturi;
+- resetare parola;
+- schimbarea propriei parole;
+- toate conturile au acces complet;
+- parola minima: 10 caractere;
+- parole stocate exclusiv ca hash bcrypt;
+- verificarea contului activ la fiecare cerere autentificata.
+
+Comportament la instalare:
+- migrarea creeaza crm.utilizatori si indexul unic;
+- contul existent din .env ramane functional;
+- la prima autentificare reusita, contul existent este importat automat;
+- sesiunile create inainte de instalare vor solicita reautentificarea.
+
+Ordinea obligatorie:
+1. backup cod si baza de date;
+2. extragere pachet;
+3. executare migrare SQL;
+4. verificare sintaxa;
+5. rebuild Docker;
+6. verificare /health;
+7. autentificare cu utilizatorul si parola existente.

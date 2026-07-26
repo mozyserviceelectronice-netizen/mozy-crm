@@ -1,0 +1,129 @@
+<%
+const eticheteStatus = {
+  primit: 'Primit',
+  in_diagnosticare: 'În diagnosticare',
+  asteapta_acord: 'Așteaptă acord',
+  asteapta_piesa: 'Așteaptă piesa',
+  in_reparatie: 'În reparație',
+  finalizat: 'Finalizat',
+  predat: 'Predat',
+  anulat: 'Anulat'
+};
+
+function numeAfisat(row) {
+  return String(row.nume || '').trim() || 'Client fără nume';
+}
+
+const dataAfisata = new Intl.DateTimeFormat('ro-RO', {
+  dateStyle: 'long',
+  timeZone: 'UTC'
+}).format(new Date(`${dataSelectata}T00:00:00Z`));
+%>
+
+<%- include('partials/header', {
+  title: 'Dashboard — Mozy CRM',
+  active
+}) %>
+
+<div class="page-heading">
+  <div>
+    <span class="eyebrow">Privire de ansamblu</span>
+    <h1>Dashboard</h1>
+  </div>
+
+  <span class="date">
+    <%= new Intl.DateTimeFormat('ro-RO', {
+      dateStyle: 'full',
+      timeZone: 'Europe/Bucharest'
+    }).format(new Date()) %>
+  </span>
+</div>
+
+<section class="metrics">
+  <article>
+    <span>Fișe active</span>
+    <strong><%= metrics.fise_active %></strong>
+  </article>
+
+  <article>
+    <span>
+      <%= esteAstazi
+        ? 'Fișe create azi'
+        : 'Fișe create la data selectată'
+      %>
+    </span>
+    <strong><%= metrics.fise_selectate %></strong>
+  </article>
+</section>
+
+<section class="date-navigation panel">
+  <a class="button ghost" href="/?data=<%= dataAnterioara %>">
+    &larr; Ziua anterioară
+  </a>
+
+  <form method="get" class="date-picker-form">
+    <input
+      type="date"
+      name="data"
+      value="<%= dataSelectata %>"
+      required
+    >
+    <button class="button primary" type="submit">
+      Afișează
+    </button>
+  </form>
+
+  <% if (!esteAstazi) { %>
+    <a class="button ghost" href="/?data=<%= azi %>">
+      Astăzi
+    </a>
+  <% } %>
+
+  <a class="button ghost" href="/?data=<%= dataUrmatoare %>">
+    Ziua următoare &rarr;
+  </a>
+</section>
+
+<section class="panel">
+  <div class="panel-title">
+    <h2>Fișe create — <%= dataAfisata %></h2>
+    <a href="/receptie">Toate fișele</a>
+  </div>
+
+  <% if (!fiseRecente.length) { %>
+    <p class="empty">
+      Nu există fișe create pentru această dată.
+    </p>
+  <% } %>
+
+  <% fiseRecente.forEach(row => { %>
+    <a class="list-row" href="/receptie/<%= row.id %>">
+      <span>
+        <strong>
+          <%= row.numar_receptie || `Fișă #${row.id}` %>
+          · <%= numeAfisat(row) %>
+        </strong>
+        <small>
+          <%= [
+            row.tip_echipament,
+            row.marca,
+            row.model
+          ].filter(Boolean).join(' · ') || 'Echipament neidentificat' %>
+        </small>
+        <small>
+          <%= row.sursa_receptie === 'teren'
+            ? 'Ridicat de tehnician'
+            : 'Predat la atelier'
+          %>
+          · <%= row.telefon %>
+        </small>
+      </span>
+
+      <span class="badge <%= row.status %>">
+        <%= eticheteStatus[row.status] || row.status %>
+      </span>
+    </a>
+  <% }) %>
+</section>
+
+<%- include('partials/footer') %>

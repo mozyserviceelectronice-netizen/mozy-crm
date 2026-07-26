@@ -1,0 +1,871 @@
+<%
+const eticheteStatus = {
+  primit: 'Primit',
+  in_diagnosticare: 'În diagnosticare',
+  asteapta_acord: 'Așteaptă acord',
+  asteapta_piesa: 'Așteaptă piesa',
+  in_reparatie: 'În reparație',
+  finalizat: 'Finalizat',
+  predat: 'Predat',
+  anulat: 'Anulat'
+};
+
+const numeClient =
+  String(receptie.nume || '').trim() ||
+  'Client fără nume';
+
+const descriereAparat = [
+  receptie.tip_echipament === 'Altul'
+    ? receptie.descriere_echipament
+    : receptie.tip_echipament,
+  receptie.marca,
+  receptie.model
+].filter(Boolean).join(' · ') || 'Echipament neidentificat';
+%>
+
+<%- include('partials/header', {
+  title: `Recepție #${receptie.id} — Mozy CRM`,
+  active
+}) %>
+
+<div class="page-heading">
+  <div>
+    <span class="eyebrow">Recepție atelier</span>
+
+    <h1>
+      #<%= receptie.id %> &middot; <%= numeClient %>
+    </h1>
+  </div>
+
+  <span class="badge <%= receptie.status %>">
+    <%= eticheteStatus[receptie.status] ||
+      receptie.status %>
+  </span>
+</div>
+
+<% if (receptie.este_test) { %>
+  <div class="test-mode-banner">
+    <strong>DOCUMENT DE TEST – FĂRĂ VALOARE</strong>
+    <span>
+      Poți folosi semnarea, WhatsApp, fotografiile, eticheta și
+      garanția. „Șterge testul” elimină întregul lanț de test.
+    </span>
+  </div>
+<% } %>
+
+<% if (created && whatsappLink === 'trimis') { %>
+  <div class="reception-message success">
+    Fișa a fost creată, iar linkul de semnare a fost trimis automat
+    clientului pe WhatsApp.
+  </div>
+<% } else if (created && whatsappLink === 'eroare') { %>
+  <div class="reception-message error">
+    Fișa a fost creată, dar linkul de semnare nu a putut fi trimis
+    automat pe WhatsApp. Îl poți retrimite din butonul de mai jos.
+  </div>
+<% } %>
+
+<% if (predareCreata && whatsappPredare === 'trimis') { %>
+  <div class="reception-message success">
+    Procesul-verbal de predare a fost creat, iar linkul de semnare
+    a fost trimis clientului pe WhatsApp.
+  </div>
+<% } else if (predareCreata && whatsappPredare === 'eroare') { %>
+  <div class="reception-message error">
+    Procesul-verbal de predare a fost creat, dar linkul nu a putut
+    fi trimis automat. Documentul poate fi deschis și retrimis din
+    arhiva de la finalul fișei.
+  </div>
+<% } %>
+
+<% if (receptie.sursa_receptie === 'teren') { %>
+  <div class="field-source-banner">
+    <strong>RIDICAT DE LA CLIENT — TEREN</strong>
+    <span>
+      Echipamentul a fost ridicat de echipa de teren, nu a fost
+      adus personal la sediu.
+      <% if (receptie.tehnician_cod) { %>
+        Tehnician: <%= receptie.tehnician_cod %>.
+      <% } %>
+    </span>
+  </div>
+
+  <% if (documenteTeren && documenteTeren.length) { %>
+    <div class="reception-document-actions">
+      <% documenteTeren.forEach(document => { %>
+        <a class="button ghost" href="/teren/<%= document.id %>">
+          Deschide <%= document.numar_interventie %>
+        </a>
+
+        <% if (document.status === 'semnat' && document.pdf_path) { %>
+          <a
+            class="button primary"
+            href="/teren/<%= document.id %>/pdf"
+            target="_blank"
+            rel="noopener"
+          >
+            Vezi PV semnat
+          </a>
+        <% } %>
+      <% }) %>
+    </div>
+  <% } %>
+<% } %>
+
+<% if (statusSalvat) { %>
+  <div class="reception-message success">
+    <% if (notificare === 'trimisa') { %>
+      Statusul a fost actualizat, iar clientul a fost notificat pe WhatsApp.
+    <% } else if (notificare === 'dezactivata') { %>
+      Statusul a fost actualizat fără notificarea clientului.
+    <% } else if (notificare === 'neschimbat') { %>
+      Statusul era deja selectat; nu s-a trimis niciun mesaj.
+    <% } else { %>
+      Statusul recepției a fost actualizat.
+    <% } %>
+  </div>
+<% } %>
+
+<% if (notificare === 'esuata') { %>
+  <div class="reception-message error">
+    Statusul a fost salvat, dar mesajul WhatsApp nu a putut fi trimis.
+    Poți încerca din nou schimbând statusul sau contactând clientul direct.
+  </div>
+<% } %>
+
+<% if (garantie === 'trimisa') { %>
+  <div class="reception-message success">
+    Certificatul de garanție a fost trimis clientului pe WhatsApp.
+  </div>
+<% } %>
+
+<% if (garantie === 'eroare') { %>
+  <div class="reception-message error">
+    Certificatul există, dar trimiterea pe WhatsApp a eșuat.
+    Poți încerca din nou.
+  </div>
+<% } %>
+
+<% if (garantie === 'deja_trimisa') { %>
+  <div class="reception-message success">
+    Certificatul tocmai a fost trimis. Retrimiterea accidentală a fost oprită.
+  </div>
+<% } %>
+
+<% if (recenzie === 'trimisa') { %>
+  <div class="reception-message success">
+    Solicitarea de recenzie a fost trimisă clientului pe WhatsApp.
+  </div>
+<% } %>
+
+<% if (recenzie === 'eroare') { %>
+  <div class="reception-message error">
+    Solicitarea de recenzie nu a putut fi trimisă pe WhatsApp.
+    Verifică numărul clientului și încearcă din nou.
+  </div>
+<% } %>
+
+<% if (recenzie === 'deja_trimisa') { %>
+  <div class="reception-message success">
+    Solicitarea tocmai a fost trimisă.
+    Retrimiterea accidentală a fost oprită.
+  </div>
+<% } %>
+
+<% if (alerte === 'oprite') { %>
+  <div class="reception-message success">
+    Alertele interne au fost oprite pentru această fișă.
+  </div>
+<% } %>
+
+<% if (alerte === 'pornite') { %>
+  <div class="reception-message success">
+    Alertele interne au fost reactivate pentru această fișă.
+  </div>
+<% } %>
+
+<% if (pozaStearsa) { %>
+  <div class="reception-message success">
+    Fotografia a fost ștearsă.
+  </div>
+<% } %>
+
+<% if (eroare === 'status_nevalid') { %>
+  <div class="reception-message error">
+    Statusul selectat nu este valid.
+  </div>
+<% } %>
+
+<% if (eroare === 'fisa_semnata') { %>
+  <div class="reception-message error">
+    Fișa este semnată și nu poate fi ștearsă.
+    Pentru păstrarea istoricului, îi poți schimba statusul în
+    „Anulat”.
+  </div>
+<% } %>
+
+<% if (eroare === 'interventie_semnata') { %>
+  <div class="reception-message error">
+    Recepția are un proces-verbal de intervenție semnat și nu poate fi
+    ștearsă. Pentru păstrarea istoricului, schimbă statusul în „Anulat”.
+  </div>
+<% } %>
+
+<% if (eroare === 'fisa_deja_semnata') { %>
+  <div class="reception-message error">
+    Fișa este deja semnată și nu mai poate primi un link nou.
+  </div>
+<% } %>
+
+<% if (eroare === 'receptie_anulata') { %>
+  <div class="reception-message error">
+    Nu poate fi generat un link pentru o recepție anulată.
+  </div>
+<% } %>
+
+<section class="card" id="fisa-tehnica-interna">
+  <h2>Fișă tehnică internă</h2>
+  <p class="muted">Vizibilă numai în CRM. Profitul este brut: valoarea lucrării minus costurile directe.</p>
+  <form method="post" action="/receptie/<%= receptie.id %>/fisa-tehnica" id="technical-sheet-form">
+    <div class="form-grid">
+      <label>Diagnostic<textarea name="diagnostic" id="tech-diagnostic" rows="3"></textarea></label>
+      <label>Defect confirmat<textarea name="defect_confirmat" id="tech-defect" rows="3"></textarea></label>
+      <label>Soluția aplicată<textarea name="solutie_aplicata" id="tech-solution" rows="3"></textarea></label>
+      <label>Coduri plăci / componente<textarea name="coduri_placi" id="tech-codes" rows="3"></textarea></label>
+      <label>Timp de lucru (minute)<input type="number" min="0" name="timp_lucru_minute" id="tech-time"></label>
+      <label>Cost piese (lei)<input type="number" min="0" step="0.01" name="total_piese" id="tech-parts"></label>
+      <label>Valoare lucrare / încasare (lei)<input type="number" min="0" step="0.01" name="valoare_lucrare" id="tech-revenue"></label>
+      <label>Cost deplasare (lei)<input type="number" min="0" step="0.01" name="cost_deplasare" id="tech-travel"></label>
+      <label>Alte costuri directe (lei)<input type="number" min="0" step="0.01" name="alte_costuri" id="tech-other"></label>
+      <div><strong>Profit brut estimat: <span id="tech-profit">0,00 lei</span></strong></div>
+    </div>
+    <button class="button primary" type="submit">Salvează fișa tehnică</button>
+  </form>
+  <div id="technical-history" class="stack-list"></div>
+</section>
+<script nonce="<%= cspNonce %>">
+(() => {
+  const id = <%= receptie.id %>, byId = x => document.getElementById(x);
+  const fields = { diagnostic:'tech-diagnostic', defect_confirmat:'tech-defect', solutie_aplicata:'tech-solution', coduri_placi:'tech-codes', timp_lucru_minute:'tech-time', total_piese:'tech-parts', valoare_lucrare:'tech-revenue', cost_deplasare:'tech-travel', alte_costuri:'tech-other' };
+  const num = id => Number.parseFloat(byId(id).value || 0) || 0;
+  const profit = () => { const v = num('tech-revenue') - num('tech-parts') - num('tech-travel') - num('tech-other'); byId('tech-profit').textContent = v.toLocaleString('ro-RO',{minimumFractionDigits:2,maximumFractionDigits:2}) + ' lei'; };
+  ['tech-revenue','tech-parts','tech-travel','tech-other'].forEach(x => byId(x).addEventListener('input', profit));
+  fetch(`/api/receptie/${id}/fisa-tehnica`, { credentials:'same-origin' }).then(r => r.ok ? r.json() : Promise.reject()).then(data => {
+    if (data.sheet) { Object.entries(fields).forEach(([key, field]) => { byId(field).value = data.sheet[key] ?? ''; }); profit(); }
+    if (data.history?.length) byId('technical-history').innerHTML = '<h3>Istoric tehnic al echipamentului</h3>' + data.history.map(x => `<article><strong>${x.numar_receptie || '#' + x.receptie_id}</strong> — ${x.defect_confirmat || x.diagnostic || 'Fără diagnostic'}<br><small>${x.solutie_aplicata || ''} · Profit brut: ${Number(x.profit_brut || 0).toLocaleString('ro-RO',{minimumFractionDigits:2})} lei</small></article>`).join('');
+  }).catch(() => { byId('technical-history').textContent = 'Fișa tehnică nu a putut fi încărcată.'; });
+})();
+</script>
+
+<section class="reception-command-center" aria-label="Acțiuni fișă">
+  <div class="reception-command-heading">
+    <div>
+      <h2>Acțiuni fișă</h2>
+      <p>Documente, comunicare și actualizarea stării lucrării.</p>
+    </div>
+  </div>
+
+  <div class="reception-action-toolbar">
+    <a
+      class="button ghost reception-back-button"
+      href="<%= returnTo %>"
+      data-reception-back-link
+      data-has-return-to="<%= hasReturnTo ? '1' : '0' %>"
+    >
+      <span aria-hidden="true">&larr;</span>
+      Înapoi la recepție
+    </a>
+
+    <div class="reception-action-menus">
+      <details class="action-dropdown">
+        <summary class="button action-dropdown-trigger">
+          <span aria-hidden="true">📄</span>
+          <span>Documente</span>
+          <span class="action-dropdown-chevron" aria-hidden="true"></span>
+        </summary>
+        <div class="action-dropdown-menu">
+          <a
+            class="action-dropdown-item"
+            href="/receptie/<%= receptie.id %>/eticheta"
+            target="_blank"
+            rel="noopener"
+          >
+            Tipărește eticheta TV
+          </a>
+          <a class="action-dropdown-item" href="/documente-service/receptie/<%= receptie.id %>/deviz">
+            Generează deviz
+          </a>
+          <a class="action-dropdown-item" href="/documente-service/receptie/<%= receptie.id %>/constatare">
+            Generează constatare
+          </a>
+          <% if (receptie.status === 'finalizat') { %>
+            <a class="action-dropdown-item" href="/receptie/<%= receptie.id %>/garantie">
+              <%= certificateGarantie && certificateGarantie.length
+                ? 'Deschide garanția'
+                : 'Emite garanție'
+              %>
+            </a>
+          <% } %>
+          <% if (receptie.semnare_status === 'semnat' && receptie.pdf_path) { %>
+            <div class="action-dropdown-divider" role="separator"></div>
+            <a
+              class="action-dropdown-item"
+              href="/receptie/<%= receptie.id %>/pdf"
+              target="_blank"
+              rel="noopener"
+            >
+              Vezi PDF semnat
+            </a>
+            <a
+              class="action-dropdown-item"
+              href="/receptie/<%= receptie.id %>/pdf?download=1"
+            >
+              Descarcă PDF
+            </a>
+          <% } %>
+        </div>
+      </details>
+
+      <details class="action-dropdown">
+        <summary class="button action-dropdown-trigger">
+          <span aria-hidden="true">💬</span>
+          <span>Comunicare</span>
+          <span class="action-dropdown-chevron" aria-hidden="true"></span>
+        </summary>
+        <div class="action-dropdown-menu">
+          <% if (
+            receptie.semnare_status !== 'semnat' &&
+            receptie.status !== 'anulat' &&
+            receptie.sursa_receptie !== 'teren'
+          ) { %>
+            <form method="post" action="/receptie/<%= receptie.id %>/link-semnare">
+              <button class="action-dropdown-item" type="submit">
+                Generează link de semnare
+              </button>
+            </form>
+          <% } %>
+          <form
+            method="post"
+            action="/receptie/<%= receptie.id %>/recenzie"
+            data-confirm="Trimiți clientului solicitarea de recenzie pe WhatsApp?"
+          >
+            <button class="action-dropdown-item" type="submit">
+              <%= receptie.recenzie_trimisa_la
+                ? 'Retrimite solicitarea de recenzie'
+                : 'Solicită recenzie'
+              %>
+            </button>
+          </form>
+          <% if (certificateGarantie && certificateGarantie.length) { %>
+            <div class="action-dropdown-divider" role="separator"></div>
+            <form
+              method="post"
+              action="/garantii/<%= certificateGarantie[0].id %>/trimite"
+            >
+              <button class="action-dropdown-item" type="submit">
+                <%= certificateGarantie[0].trimisa_la
+                  ? 'Retrimite garanția pe WhatsApp'
+                  : 'Trimite garanția pe WhatsApp'
+                %>
+              </button>
+            </form>
+          <% } %>
+        </div>
+      </details>
+
+      <details class="action-dropdown action-dropdown-end">
+        <summary class="button action-dropdown-trigger">
+          <span aria-hidden="true">⚙</span>
+          <span>Mai multe</span>
+          <span class="action-dropdown-chevron" aria-hidden="true"></span>
+        </summary>
+        <div class="action-dropdown-menu">
+          <form
+            method="post"
+            action="/receptie/<%= receptie.id %>/alerte"
+          >
+            <input
+              type="hidden"
+              name="alerte_active"
+              value="<%= receptie.alerte_active ? '0' : '1' %>"
+            >
+            <button class="action-dropdown-item" type="submit">
+              <%= receptie.alerte_active
+                ? 'Oprește alertele'
+                : 'Reactivează alertele'
+              %>
+            </button>
+          </form>
+          <div class="action-dropdown-divider" role="separator"></div>
+          <form
+            class="reception-delete-form"
+            method="post"
+            action="<%= receptie.este_test
+              ? `/teste/receptie/${receptie.id}/sterge`
+              : `/receptie/${receptie.id}/sterge`
+            %>"
+            data-confirm="<%= receptie.este_test
+              ? 'Ștergi întregul test, inclusiv documentele, fotografiile și garanțiile? '
+              : 'Sigur vrei să ștergi definitiv această fișă? '
+            %>Operația nu poate fi anulată."
+          >
+            <button
+              class="action-dropdown-item action-dropdown-danger"
+              type="submit"
+              <%= !receptie.este_test &&
+                  receptie.semnare_status === 'semnat'
+                ? 'disabled'
+                : ''
+              %>
+            >
+              <%= receptie.este_test ? 'Șterge testul' : 'Șterge fișa' %>
+            </button>
+          </form>
+        </div>
+      </details>
+    </div>
+  </div>
+
+  <% if (
+    receptie.status !== 'predat' &&
+    receptie.status !== 'anulat'
+  ) { %>
+    <div class="reception-handover-actions">
+      <div class="reception-handover-copy">
+        <strong>Predare echipament</strong>
+        <span>
+          Alege situația reală. Clientul primește imediat pe WhatsApp
+          procesul-verbal pentru verificare și semnare.
+        </span>
+      </div>
+
+      <div class="reception-handover-buttons">
+        <a
+          class="button primary"
+          href="/teren/noua?context_operatiune=atelier&tip_operatiune=predare_reparat&receptie_id=<%= receptie.id %>&rezultat_proba=functional<%= receptie.este_test ? '&este_test=1' : '' %>"
+        >
+          Predă reparat și funcțional
+        </a>
+
+        <a
+          class="button ghost"
+          href="/teren/noua?context_operatiune=atelier&tip_operatiune=predare_nereparat&receptie_id=<%= receptie.id %>&rezultat_proba=nereparat<%= receptie.este_test ? '&este_test=1' : '' %>"
+        >
+          Restituie nereparat
+        </a>
+      </div>
+    </div>
+  <% } %>
+
+  <form
+    class="reception-status-form"
+    method="post"
+    action="/receptie/<%= receptie.id %>/status"
+  >
+    <label class="reception-status-field" for="reception-status">
+      <span>Status lucrare</span>
+
+      <select id="reception-status" name="status" required>
+        <% Object.entries(eticheteStatus).forEach(
+          ([valoare, eticheta]) => {
+        %>
+          <option
+            value="<%= valoare %>"
+            <%= receptie.status === valoare ? 'selected' : '' %>
+          >
+            <%= eticheta %>
+          </option>
+        <% }) %>
+      </select>
+    </label>
+
+    <div class="reception-status-submit">
+      <label class="reception-notify-option">
+        <input
+          type="checkbox"
+          name="notifica_client"
+          value="1"
+          checked
+        >
+        <span>Notifică clientul pe WhatsApp</span>
+      </label>
+
+      <button class="button primary" type="submit">
+        Salvează statusul
+      </button>
+    </div>
+  </form>
+
+</section>
+
+<% if (
+  receptie.recenzie_trimisa_la ||
+  receptie.recenzie_ultima_eroare
+) { %>
+  <section class="panel">
+    <h2>Recenzie Google</h2>
+
+    <% if (receptie.recenzie_trimisa_la) { %>
+      <p>
+        Solicitare trimisă pe WhatsApp:
+        <strong>
+          <%= new Intl.DateTimeFormat('ro-RO', {
+            timeZone: 'Europe/Bucharest',
+            dateStyle: 'medium',
+            timeStyle: 'short'
+          }).format(new Date(receptie.recenzie_trimisa_la)) %>
+        </strong>
+      </p>
+    <% } %>
+
+    <% if (receptie.recenzie_ultima_eroare) { %>
+      <p class="signed-delete-note">
+        Ultima încercare a eșuat:
+        <%= receptie.recenzie_ultima_eroare %>
+      </p>
+    <% } %>
+  </section>
+<% } %>
+
+<% if (certificateGarantie && certificateGarantie.length) { %>
+  <section class="panel">
+    <h2>Certificat de garanție</h2>
+    <% certificateGarantie.forEach(certificate => { %>
+      <div class="certificate-row">
+        <div>
+          <strong><%= certificate.numar_certificat %></strong>
+          <small>
+            <%= certificate.durata_luni %> luni
+            <% if (certificate.trimisa_la) { %>
+              &middot; trimis pe WhatsApp
+            <% } %>
+          </small>
+        </div>
+        <div class="page-actions">
+          <a
+            class="button ghost"
+            href="/garantii/<%= certificate.id %>/pdf"
+          >
+            Descarcă PDF
+          </a>
+          <form
+            method="post"
+            action="/garantii/<%= certificate.id %>/trimite"
+          >
+            <button class="button primary" type="submit">
+              <%= certificate.trimisa_la
+                ? 'Retrimite'
+                : 'Trimite pe WhatsApp'
+              %>
+            </button>
+          </form>
+        </div>
+      </div>
+    <% }) %>
+  </section>
+<% } %>
+
+<% if (
+  !receptie.este_test &&
+  receptie.semnare_status === 'semnat'
+) { %>
+  <p class="signed-delete-note">
+    Ștergerea este dezactivată deoarece fișa a fost semnată.
+  </p>
+<% } %>
+
+<div class="two-columns detail-grid">
+  <section class="panel">
+    <h2>Date client</h2>
+
+    <dl>
+      <dt>Nume</dt>
+      <dd><%= numeClient %></dd>
+
+      <dt>Telefon</dt>
+      <dd><%= receptie.telefon || '—' %></dd>
+
+      <dt>Email</dt>
+      <dd><%= receptie.email || '—' %></dd>
+
+      <dt>Adresă</dt>
+      <dd><%= receptie.adresa_client || '—' %></dd>
+    </dl>
+  </section>
+
+  <section class="panel">
+    <h2>Echipament</h2>
+
+    <dl>
+      <dt>Tip / marcă / model</dt>
+      <dd><%= descriereAparat %></dd>
+
+      <dt>Serie</dt>
+      <dd><%= receptie.serie || '—' %></dd>
+
+      <dt>Preț estimat reparație</dt>
+      <dd>
+        <%= receptie.pret_estimat_reparatie != null
+          ? `${receptie.pret_estimat_reparatie} lei`
+          : '—'
+        %>
+      </dd>
+
+      <dt>Stare la primire</dt>
+      <dd><%= receptie.stare_la_primire || '—' %></dd>
+    </dl>
+  </section>
+
+  <section class="panel full-width">
+    <h2>Detalii recepție</h2>
+
+    <dl>
+      <dt>Data primirii</dt>
+      <dd>
+        <%= receptie.data_primire_afisata || '—' %>
+      </dd>
+
+      <% if (receptie.sursa_receptie === 'teren') { %>
+        <dt>Data ridicării</dt>
+        <dd>
+          <%= receptie.data_ridicare_teren
+            ? new Intl.DateTimeFormat('ro-RO', {
+                timeZone: 'Europe/Bucharest',
+                day: '2-digit',
+                month: '2-digit',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+              }).format(new Date(receptie.data_ridicare_teren))
+            : '—'
+          %>
+        </dd>
+
+        <dt>Adresa ridicării</dt>
+        <dd><%= receptie.adresa_ridicare_teren || '—' %></dd>
+      <% } %>
+
+      <dt>Defect reclamat</dt>
+      <dd><%= receptie.defect_reclamat || '—' %></dd>
+
+      <dt>Accesorii</dt>
+      <dd>
+        <% if (receptie.are_accesorii) { %>
+          <%= receptie.accesorii || 'Accesorii predate' %>
+        <% } else { %>
+          Nu au fost predate accesorii
+        <% } %>
+      </dd>
+
+      <dt>Observații</dt>
+      <dd><%= receptie.observatii || '—' %></dd>
+    </dl>
+  </section>
+</div>
+
+<section class="panel reception-photos" id="fotografii">
+  <div class="panel-title reception-photos-heading">
+    <div>
+      <h2>Fotografii</h2>
+      <p>
+        Adaugă fotografii din cameră sau galerie. Sunt acceptate JPG, PNG și WEBP, maximum 12 MB fiecare.
+      </p>
+    </div>
+
+    <div class="reception-photo-picker-group">
+      <label class="button primary reception-photo-picker">
+        Fă fotografie
+        <input
+          id="reception-camera-input"
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          capture="environment"
+        >
+      </label>
+
+      <label class="button reception-photo-picker">
+        Încarcă din galerie
+        <input
+          id="reception-gallery-input"
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          multiple
+        >
+      </label>
+    </div>
+  </div>
+
+  <div
+    id="reception-photo-progress"
+    class="reception-photo-progress"
+    role="status"
+    aria-live="polite"
+  ></div>
+
+  <% if (!fotografii.length) { %>
+    <p class="empty">Nu există fotografii adăugate la această fișă.</p>
+  <% } else { %>
+    <div class="reception-photo-grid">
+      <% fotografii.forEach(fotografie => { %>
+        <article class="reception-photo-card">
+          <a
+            href="/receptie/<%= receptie.id %>/fotografii/<%= fotografie.id %>"
+            target="_blank"
+            rel="noopener"
+          >
+            <img
+              src="/receptie/<%= receptie.id %>/fotografii/<%= fotografie.id %>"
+              alt="<%= fotografie.nume_original %>"
+              loading="lazy"
+            >
+          </a>
+
+          <div class="reception-photo-meta">
+            <strong><%= fotografie.nume_original %></strong>
+            <small>
+              <%= fotografie.created_at_afisata %> ·
+              <%= Math.max(1, Math.round(fotografie.dimensiune_bytes / 1024)) %> KB
+            </small>
+
+            <div class="reception-photo-actions">
+              <a
+                class="button ghost compact"
+                href="/receptie/<%= receptie.id %>/fotografii/<%= fotografie.id %>?download=1"
+              >
+                Descarcă
+              </a>
+
+              <form
+                method="post"
+                action="/receptie/<%= receptie.id %>/fotografii/<%= fotografie.id %>/sterge"
+                data-confirm="Sigur vrei să ștergi această fotografie?"
+              >
+                <button class="button danger compact" type="submit">
+                  Șterge
+                </button>
+              </form>
+            </div>
+          </div>
+        </article>
+      <% }) %>
+    </div>
+  <% } %>
+</section>
+
+<section class="panel signed-documents" id="procese-verbale">
+  <div class="panel-title">
+    <div>
+      <h2>Procese-verbale semnate</h2>
+      <p>
+        Arhiva completă a documentelor semnate pentru această fișă.
+      </p>
+    </div>
+  </div>
+
+  <% if (!documenteSemnate || !documenteSemnate.length) { %>
+    <p class="empty">Nu există încă procese-verbale semnate.</p>
+  <% } else { %>
+    <div class="signed-document-list">
+      <% documenteSemnate.forEach(document => { %>
+        <article class="signed-document-row">
+          <div>
+            <strong><%= document.denumire %></strong>
+            <small>
+              <%= document.numar_document || 'Fără număr' %>
+              <% if (document.semnat_la) { %>
+                &middot;
+                <%= new Intl.DateTimeFormat('ro-RO', {
+                  timeZone: 'Europe/Bucharest',
+                  dateStyle: 'medium',
+                  timeStyle: 'short'
+                }).format(new Date(document.semnat_la)) %>
+              <% } %>
+            </small>
+          </div>
+          <div class="page-actions">
+            <a
+              class="button primary compact"
+              href="<%= document.url %>"
+              target="_blank"
+              rel="noopener"
+            >Vezi PDF</a>
+            <a
+              class="button ghost compact"
+              href="<%= document.url %>?download=1"
+            >Descarcă</a>
+          </div>
+        </article>
+      <% }) %>
+    </div>
+  <% } %>
+</section>
+
+<script nonce="<%= cspNonce %>">
+(() => {
+  const inputs = [
+    document.getElementById('reception-camera-input'),
+    document.getElementById('reception-gallery-input')
+  ].filter(Boolean);
+  const progress = document.getElementById('reception-photo-progress');
+
+  if (!inputs.length || !progress) return;
+
+  async function uploadSelected(input) {
+    const files = Array.from(input.files || []);
+    if (!files.length) return;
+
+    inputs.forEach(item => { item.disabled = true; });
+    let uploaded = 0;
+    const csrfToken = document
+      .querySelector('meta[name="csrf-token"]')
+      ?.getAttribute('content') || '';
+
+    try {
+      for (const file of files) {
+        progress.textContent =
+          `Se încarcă ${uploaded + 1} din ${files.length}: ${file.name}`;
+
+        if (file.size > 12 * 1024 * 1024) {
+          throw new Error(`${file.name} depășește limita de 12 MB.`);
+        }
+
+        const response = await fetch(
+          '/receptie/<%= receptie.id %>/fotografii',
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': file.type || 'application/octet-stream',
+              'X-File-Name': encodeURIComponent(file.name),
+              'X-CSRF-Token': csrfToken
+            },
+            body: file,
+            credentials: 'same-origin'
+          }
+        );
+
+        if (!response.ok) {
+          const result = await response.json().catch(() => ({}));
+          throw new Error(result.error || `Încărcarea ${file.name} a eșuat.`);
+        }
+
+        uploaded += 1;
+      }
+
+      progress.textContent = `${uploaded} fotografii încărcate. Se reîncarcă pagina…`;
+      window.location.hash = 'fotografii';
+      window.location.reload();
+    } catch (error) {
+      progress.textContent = error.message || 'Încărcarea fotografiilor a eșuat.';
+      progress.classList.add('error');
+      inputs.forEach(item => { item.disabled = false; });
+      input.value = '';
+    }
+  }
+
+  inputs.forEach(input => {
+    input.addEventListener('change', () => uploadSelected(input));
+  });
+})();
+</script>
+
+<%- include('partials/footer') %>

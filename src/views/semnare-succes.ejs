@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="ro">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Fișă semnată — Mozy Service</title>
+  <style nonce="<%= cspNonce %>">
+    body{margin:0;background:#f4f7fb;color:#172033;font-family:system-ui,sans-serif}
+    main{max-width:620px;margin:10vh auto;padding:24px}
+    section{background:#fff;border:1px solid #dbe3ef;border-radius:16px;padding:28px;box-shadow:0 12px 36px rgba(16,24,40,.08)}
+    .check{width:54px;height:54px;border-radius:50%;display:grid;place-items:center;background:#dcfae6;color:#067647;font-size:30px;font-weight:800}
+    h1{font-size:26px;margin:18px 0 10px}p{line-height:1.6;color:#526075}
+  </style>
+  <meta name="csrf-token" content="<%= csrfToken %>">
+</head>
+<body>
+  <main>
+    <% if (receptie.este_test) { %>
+      <div class="card">
+        <strong>DOCUMENT DE TEST – FĂRĂ VALOARE</strong>
+      </div>
+    <% } %>
+    <section>
+      <div class="check" aria-hidden="true">✓</div>
+      <h1>Fișa a fost semnată</h1>
+      <p>
+        Recepția <strong><%= receptie.numar_receptie %></strong> a fost
+        semnată la <strong><%= receptie.semnat_la_afisat %></strong>.
+      </p>
+      <% if (whatsappTrimis) { %>
+        <p>
+          Documentul PDF semnat a fost generat, arhivat și trimis pe
+          WhatsApp. Poți închide această pagină.
+        </p>
+      <% } else { %>
+        <p>
+          Documentul PDF semnat a fost generat și arhivat în siguranță.
+          Expedierea automată pe WhatsApp nu a reușit, iar service-ul îl
+          va retransmite. Semnarea rămâne valabilă.
+        </p>
+      <% } %>
+    </section>
+  </main>
+  <script src="/app.js" defer></script>
+</body>
+</html>
