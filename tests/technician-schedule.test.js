@@ -48,7 +48,7 @@ test('Andrei trimite către Giani și ambele numere ale lui Lucian', () => {
   });
   assert.deepEqual(
     result.recipients.map(item => item.number),
-    ['40731341491', '40765955446', '40775142016']
+    ['40721341491', '40765955446', '40775142016']
   );
 });
 
@@ -66,7 +66,7 @@ test('Giani și Lucian nu primesc propriul mesaj', () => {
   });
   assert.deepEqual(
     lucian.recipients.map(item => item.number),
-    ['40771559501', '40731341491']
+    ['40771559501', '40721341491']
   );
 });
 
@@ -78,7 +78,7 @@ test('un utilizator necunoscut poate alege numai membri autorizați', () => {
   assert.equal(result.sender, null);
   assert.deepEqual(
     result.recipients.map(item => item.number),
-    ['40731341491']
+    ['40721341491']
   );
 });
 

@@ -56,6 +56,58 @@ const dataAfisata = new Intl.DateTimeFormat('ro-RO', {
   </article>
 </section>
 
+<section class="panel dashboard-library-card">
+  <div class="dashboard-library-header">
+    <div>
+      <span class="eyebrow">Cunoștințe tehnice interne</span>
+      <h2>Biblioteca defecte</h2>
+      <p>
+        Cazuri rare, coduri, măsurători, fotografii și soluții din service.
+      </p>
+    </div>
+    <div class="page-actions">
+      <a class="button ghost" href="/biblioteca-defecte">
+        Deschide biblioteca
+      </a>
+      <a class="button primary" href="/biblioteca-defecte/cazuri/nou">
+        + Adaugă defect
+      </a>
+    </div>
+  </div>
+
+  <div class="dashboard-library-metrics">
+    <div>
+      <span>Cazuri</span>
+      <strong><%= defectLibrary.metrics.total_cazuri %></strong>
+    </div>
+    <div>
+      <span>Modele</span>
+      <strong><%= defectLibrary.metrics.total_modele %></strong>
+    </div>
+    <div>
+      <span>Mărci</span>
+      <strong><%= defectLibrary.metrics.total_marci %></strong>
+    </div>
+  </div>
+
+  <div class="dashboard-library-recent">
+    <strong>Ultimele cazuri adăugate sau actualizate</strong>
+    <% if (!defectLibrary.recent.length) { %>
+      <p class="empty">Nu există încă niciun caz în bibliotecă.</p>
+    <% } else { %>
+      <% defectLibrary.recent.forEach(item => { %>
+        <a href="/biblioteca-defecte/cazuri/<%= item.id %>">
+          <span>
+            <strong><%= item.titlu %></strong>
+            <small><%= item.marca %> · <%= item.model %></small>
+          </span>
+          <span aria-hidden="true">›</span>
+        </a>
+      <% }) %>
+    <% } %>
+  </div>
+</section>
+
 <section class="date-navigation panel">
   <a class="button ghost" href="/?data=<%= dataAnterioara %>">
     &larr; Ziua anterioară

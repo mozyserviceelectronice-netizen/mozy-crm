@@ -1,0 +1,370 @@
+<%
+const dateFormatter = new Intl.DateTimeFormat('ro-RO', {
+  dateStyle: 'medium',
+  timeStyle: 'short',
+  timeZone: 'Europe/Bucharest'
+});
+const activeCaseTotal = brandCards.reduce(
+  (sum, brand) => sum + Number(brand.numar_cazuri || 0),
+  0
+);
+%>
+<%- include('partials/header', {
+  title: 'Biblioteca defecte - Mozy CRM',
+  active
+}) %>
+
+<nav class="library-breadcrumb" aria-label="Navigare bibliotecă">
+  <a href="/biblioteca-defecte">Biblioteca defecte</a>
+</nav>
+
+<div class="page-heading library-page-heading">
+  <div>
+    <span class="eyebrow">Cunoștințe tehnice interne</span>
+    <h1>Biblioteca defecte</h1>
+    <p>
+      Cazuri rare, măsurători, coduri și soluții verificate în service.
+    </p>
+  </div>
+  <div class="page-actions">
+    <% if (isAdmin) { %>
+      <a
+        class="button ghost"
+        href="/biblioteca-defecte/administrare"
+      >Administrează structura</a>
+    <% } %>
+    <a
+      class="button primary"
+      href="/biblioteca-defecte/cazuri/nou"
+    >+ Adaugă defect</a>
+  </div>
+</div>
+
+<section class="metrics library-metrics">
+  <article>
+    <span>Cazuri active</span>
+    <strong><%= activeCaseTotal %></strong>
+    <small><%= total %> în selecția curentă</small>
+  </article>
+  <article>
+    <span>Mărci active</span>
+    <strong><%= brandCards.length %></strong>
+    <small>Structură extensibilă</small>
+  </article>
+  <article>
+    <span>Modele disponibile</span>
+    <strong><%= models.length %></strong>
+    <small>Fără modele arhivate</small>
+  </article>
+</section>
+
+<section class="panel library-search-panel">
+  <form method="get" class="library-filter-form" data-library-filters>
+    <label class="library-search-field">
+      <span>Căutare</span>
+      <input
+        type="search"
+        name="q"
+        value="<%= filters.q %>"
+        maxlength="200"
+        placeholder="Ex.: Samsung restart BN41 sau TP.MS3663"
+      >
+    </label>
+
+    <details
+      class="library-filter-details"
+      <%= filtersActive ? 'open' : '' %>
+    >
+      <summary>Filtre și ordonare</summary>
+      <div class="library-filter-grid">
+        <label>
+          Marcă
+          <select name="marca_id" data-library-brand>
+            <option value="">Toate mărcile</option>
+            <% brands.filter(item => item.activa).forEach(brand => { %>
+              <option
+                value="<%= brand.id %>"
+                <%= Number(filters.marca_id) === Number(brand.id) ? 'selected' : '' %>
+              ><%= brand.nume %></option>
+            <% }) %>
+          </select>
+        </label>
+
+        <label>
+          Familie / serie
+          <select name="familie_id" data-library-family>
+            <option value="">Toate familiile</option>
+            <% families.filter(item => item.activa).forEach(family => { %>
+              <option
+                value="<%= family.id %>"
+                data-brand-id="<%= family.marca_id %>"
+                <%= Number(filters.familie_id) === Number(family.id) ? 'selected' : '' %>
+              ><%= family.nume %></option>
+            <% }) %>
+          </select>
+        </label>
+
+        <label>
+          Model
+          <select name="model_id" data-library-model>
+            <option value="">Toate modelele</option>
+            <% models.forEach(model => { %>
+              <option
+                value="<%= model.id %>"
+                data-brand-id="<%= model.marca_id %>"
+                data-family-id="<%= model.familie_id || '' %>"
+                <%= Number(filters.model_id) === Number(model.id) ? 'selected' : '' %>
+              ><%= model.model %></option>
+            <% }) %>
+          </select>
+        </label>
+
+        <label>
+          Dificultate
+          <select name="dificultate">
+            <option value="">Toate</option>
+            <% Object.entries(difficulties).forEach(([value, label]) => { %>
+              <option
+                value="<%= value %>"
+                <%= filters.dificultate === value ? 'selected' : '' %>
+              ><%= label %></option>
+            <% }) %>
+          </select>
+        </label>
+
+        <label>
+          Rezultat
+          <select name="rezultat">
+            <option value="">Toate</option>
+            <% Object.entries(results).forEach(([value, label]) => { %>
+              <option
+                value="<%= value %>"
+                <%= filters.rezultat === value ? 'selected' : '' %>
+              ><%= label %></option>
+            <% }) %>
+          </select>
+        </label>
+
+        <label>
+          Verificare
+          <select name="status_verificare">
+            <option value="">Cazuri active</option>
+            <% Object.entries(verificationStatuses).forEach(([value, label]) => { %>
+              <option
+                value="<%= value %>"
+                <%= filters.status_verificare === value ? 'selected' : '' %>
+              ><%= label %></option>
+            <% }) %>
+          </select>
+        </label>
+
+        <label>
+          Cu atașamente
+          <select name="cu_atasamente">
+            <option value="">Indiferent</option>
+            <option value="da" <%= filters.cu_atasamente === 'da' ? 'selected' : '' %>>Da</option>
+            <option value="nu" <%= filters.cu_atasamente === 'nu' ? 'selected' : '' %>>Nu</option>
+          </select>
+        </label>
+
+        <label>
+          Tip atașament
+          <select name="atasament">
+            <option value="">Orice tip</option>
+            <option value="imagine" <%= filters.atasament === 'imagine' ? 'selected' : '' %>>Imagine</option>
+            <option value="pdf" <%= filters.atasament === 'pdf' ? 'selected' : '' %>>PDF</option>
+          </select>
+        </label>
+
+        <label>
+          Creat de
+          <select name="creat_de">
+            <option value="">Orice utilizator</option>
+            <% users.forEach(item => { %>
+              <option
+                value="<%= item.id %>"
+                <%= Number(filters.creat_de) === Number(item.id) ? 'selected' : '' %>
+              ><%= item.username %></option>
+            <% }) %>
+          </select>
+        </label>
+
+        <label>
+          De la data
+          <input
+            type="date"
+            name="data_de_la"
+            value="<%= filters.data_de_la %>"
+          >
+        </label>
+
+        <label>
+          Până la data
+          <input
+            type="date"
+            name="data_pana_la"
+            value="<%= filters.data_pana_la %>"
+          >
+        </label>
+
+        <label>
+          Ordonare
+          <select name="sort">
+            <% Object.entries(sorts).forEach(([value, label]) => { %>
+              <option
+                value="<%= value %>"
+                <%= filters.sort === value ? 'selected' : '' %>
+              ><%= label %></option>
+            <% }) %>
+          </select>
+        </label>
+
+        <label>
+          Rezultate pe pagină
+          <select name="per_page">
+            <% pageSizes.forEach(size => { %>
+              <option
+                value="<%= size %>"
+                <%= Number(filters.per_page) === size ? 'selected' : '' %>
+              ><%= size %></option>
+            <% }) %>
+          </select>
+        </label>
+      </div>
+    </details>
+
+    <div class="library-filter-actions">
+      <button class="button primary" type="submit">
+        Caută
+      </button>
+      <% if (filtersActive || filters.sort !== 'updated_desc' || filters.per_page !== 25) { %>
+        <a class="button ghost" href="/biblioteca-defecte">
+          Șterge filtrele
+        </a>
+      <% } %>
+    </div>
+  </form>
+</section>
+
+<section class="panel">
+  <div class="panel-title">
+    <h2>Mărci</h2>
+    <span class="library-section-note">
+      Marcă → familie → model → caz
+    </span>
+  </div>
+
+  <% if (!brandCards.length) { %>
+    <div class="library-empty-state">
+      <strong>Nu există încă mărci active.</strong>
+      <% if (isAdmin) { %>
+        <a
+          class="button primary"
+          href="/biblioteca-defecte/administrare"
+        >Adaugă marcă</a>
+      <% } %>
+    </div>
+  <% } else { %>
+    <div class="library-brand-grid">
+      <% brandCards.forEach(brand => { %>
+        <a
+          class="library-folder-card"
+          href="/biblioteca-defecte/marci/<%= brand.id %>"
+        >
+          <span class="library-folder-icon" aria-hidden="true">M</span>
+          <span class="library-folder-copy">
+            <strong><%= brand.nume %></strong>
+            <small>
+              <%= brand.numar_modele %> modele ·
+              <%= brand.numar_cazuri %> cazuri
+            </small>
+            <% if (brand.ultima_actualizare) { %>
+              <small>
+                Actualizat <%= dateFormatter.format(new Date(brand.ultima_actualizare)) %>
+              </small>
+            <% } %>
+          </span>
+          <span class="library-folder-arrow" aria-hidden="true">›</span>
+        </a>
+      <% }) %>
+    </div>
+  <% } %>
+</section>
+
+<section class="panel" id="rezultate">
+  <div class="panel-title">
+    <h2><%= filtersActive ? 'Rezultatele căutării' : 'Cazuri actualizate recent' %></h2>
+    <span class="library-result-count">
+      <%= total %> <%= total === 1 ? 'caz' : 'cazuri' %>
+    </span>
+  </div>
+
+  <% if (!cases.length) { %>
+    <div class="library-empty-state">
+      <strong>Nu au fost găsite rezultate.</strong>
+      <span>Modifică termenii de căutare sau elimină filtrele.</span>
+      <a class="button ghost" href="/biblioteca-defecte">
+        Șterge filtrele
+      </a>
+    </div>
+  <% } else { %>
+    <div class="library-case-list">
+      <% cases.forEach(item => { %>
+        <a
+          class="library-case-row"
+          href="/biblioteca-defecte/cazuri/<%= item.id %>"
+        >
+          <span class="library-case-main">
+            <strong><%= item.titlu %></strong>
+            <small>
+              <%= item.marca %> ·
+              <%= item.familie ? `${item.familie} · ` : '' %>
+              <%= item.model %>
+            </small>
+            <% if (item.simptom) { %>
+              <span><%= item.simptom %></span>
+            <% } %>
+          </span>
+          <span class="library-case-meta">
+            <span class="badge library-status-<%= item.status_verificare %>">
+              <%= verificationStatuses[item.status_verificare] %>
+            </span>
+            <small>
+              <%= item.numar_atasamente %> atașamente ·
+              <%= item.autor %>
+            </small>
+            <small>
+              <%= dateFormatter.format(new Date(item.updated_at)) %>
+            </small>
+          </span>
+        </a>
+      <% }) %>
+    </div>
+  <% } %>
+
+  <% if (totalPages > 1) { %>
+    <nav class="library-pagination" aria-label="Paginare bibliotecă">
+      <% if (page > 1) { %>
+        <a
+          class="button ghost"
+          href="<%= buildLibraryUrl('/biblioteca-defecte', filters, {
+            page: page - 1
+          }) %>#rezultate"
+          rel="prev"
+        >&larr; Anterioară</a>
+      <% } %>
+      <span>Pagina <strong><%= page %></strong> din <strong><%= totalPages %></strong></span>
+      <% if (page < totalPages) { %>
+        <a
+          class="button ghost"
+          href="<%= buildLibraryUrl('/biblioteca-defecte', filters, {
+            page: page + 1
+          }) %>#rezultate"
+          rel="next"
+        >Următoarea &rarr;</a>
+      <% } %>
+    </nav>
+  <% } %>
+</section>
+
+<%- include('partials/footer') %>

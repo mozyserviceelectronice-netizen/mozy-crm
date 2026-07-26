@@ -1,0 +1,122 @@
+<%- include('partials/header', {
+  title: `${brand.nume} - Biblioteca defecte`,
+  active
+}) %>
+
+<nav class="library-breadcrumb" aria-label="Navigare bibliotecă">
+  <a href="/biblioteca-defecte">Biblioteca defecte</a>
+  <span aria-hidden="true">›</span>
+  <span><%= brand.nume %></span>
+</nav>
+
+<div class="page-heading library-page-heading">
+  <div>
+    <span class="eyebrow">Marcă</span>
+    <h1><%= brand.nume %></h1>
+    <% if (!brand.activa) { %>
+      <span class="badge alert">Marcă dezactivată</span>
+    <% } %>
+  </div>
+  <div class="page-actions">
+    <a
+      class="button ghost"
+      href="/biblioteca-defecte"
+    >Înapoi la bibliotecă</a>
+    <a
+      class="button primary"
+      href="/biblioteca-defecte/cazuri/nou?marca_id=<%= brand.id %>"
+    >+ Adaugă defect</a>
+  </div>
+</div>
+
+<section class="panel">
+  <div class="panel-title">
+    <h2>Familii / serii</h2>
+    <a href="#toate-modelele">Toate modelele</a>
+  </div>
+
+  <% if (!families.length) { %>
+    <div class="library-empty-state">
+      <strong>Nu există familii pentru această marcă.</strong>
+      <span>Poți crea una direct când adaugi primul caz.</span>
+      <a
+        class="button primary"
+        href="/biblioteca-defecte/cazuri/nou?marca_id=<%= brand.id %>"
+      >Adaugă defect</a>
+    </div>
+  <% } else { %>
+    <div class="library-brand-grid">
+      <% families.forEach(family => { %>
+        <a
+          class="library-folder-card"
+          href="/biblioteca-defecte/familii/<%= family.id %>"
+        >
+          <span class="library-folder-icon family" aria-hidden="true">F</span>
+          <span class="library-folder-copy">
+            <strong><%= family.nume %></strong>
+            <small>
+              <%= family.numar_modele %> modele ·
+              <%= family.numar_cazuri %> cazuri
+            </small>
+          </span>
+          <span class="library-folder-arrow" aria-hidden="true">›</span>
+        </a>
+      <% }) %>
+    </div>
+  <% } %>
+</section>
+
+<section class="panel" id="toate-modelele">
+  <div class="panel-title">
+    <h2>Toate modelele</h2>
+    <span class="library-result-count"><%= models.length %></span>
+  </div>
+
+  <form method="get" class="library-inline-search">
+    <input
+      type="search"
+      name="q"
+      value="<%= q %>"
+      maxlength="150"
+      placeholder="Caută model, familie sau defect"
+    >
+    <button class="button primary" type="submit">Caută</button>
+    <% if (q) { %>
+      <a
+        class="button ghost"
+        href="/biblioteca-defecte/marci/<%= brand.id %>#toate-modelele"
+      >Șterge căutarea</a>
+    <% } %>
+  </form>
+
+  <% if (!models.length) { %>
+    <div class="library-empty-state">
+      <strong>Nu există modele pentru selecția curentă.</strong>
+      <span>Modelul poate fi creat automat odată cu primul caz.</span>
+      <a
+        class="button primary"
+        href="/biblioteca-defecte/cazuri/nou?marca_id=<%= brand.id %>"
+      >Adaugă model și defect</a>
+    </div>
+  <% } else { %>
+    <div class="library-model-list">
+      <% models.forEach(model => { %>
+        <a
+          class="library-model-row"
+          href="/biblioteca-defecte/modele/<%= model.id %>"
+        >
+          <span>
+            <strong><%= model.model %></strong>
+            <small><%= model.familie || 'Fără familie' %></small>
+          </span>
+          <span>
+            <strong><%= model.numar_cazuri %></strong>
+            <small>cazuri</small>
+          </span>
+        </a>
+      <% }) %>
+    </div>
+  <% } %>
+</section>
+
+<%- include('partials/footer') %>

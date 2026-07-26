@@ -15,6 +15,7 @@ FROM dependencies AS test
 COPY --chown=node:node src ./src
 COPY --chown=node:node public ./public
 COPY --chown=node:node scripts ./scripts
+COPY --chown=node:node migrations ./migrations
 COPY --chown=node:node tests ./tests
 
 USER node

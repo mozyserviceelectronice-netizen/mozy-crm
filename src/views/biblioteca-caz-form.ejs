@@ -1,0 +1,299 @@
+<%
+const isEdit = mode === 'edit';
+const action = isEdit
+  ? `/biblioteca-defecte/cazuri/${caseId}/editare`
+  : '/biblioteca-defecte/cazuri';
+%>
+<%- include('partials/header', {
+  title: `${isEdit ? 'Editare caz' : 'Adaugă defect'} - Mozy CRM`,
+  active
+}) %>
+
+<nav class="library-breadcrumb" aria-label="Navigare bibliotecă">
+  <a href="/biblioteca-defecte">Biblioteca defecte</a>
+  <span aria-hidden="true">›</span>
+  <span><%= isEdit ? 'Editare caz' : 'Adaugă defect' %></span>
+</nav>
+
+<div class="page-heading library-page-heading">
+  <div>
+    <span class="eyebrow">Caz tehnic</span>
+    <h1><%= isEdit ? 'Editare caz' : 'Adaugă defect' %></h1>
+    <p>Datele pot fi completate progresiv; câmpurile tehnice sunt opționale.</p>
+  </div>
+  <a
+    class="button ghost"
+    href="<%= isEdit ? `/biblioteca-defecte/cazuri/${caseId}` : '/biblioteca-defecte' %>"
+  >Renunță</a>
+</div>
+
+<% if (errors.length) { %>
+  <div class="reception-message error" role="alert">
+    <strong>Cazul nu a fost salvat:</strong>
+    <ul>
+      <% errors.forEach(error => { %>
+        <li><%= error %></li>
+      <% }) %>
+    </ul>
+  </div>
+<% } %>
+
+<form
+  method="post"
+  action="<%= action %>"
+  class="library-case-form"
+  data-library-case-form
+>
+  <section class="panel library-form-section">
+    <div class="library-form-heading">
+      <span>A</span>
+      <div>
+        <h2>Identificare</h2>
+        <p>Marcă, familie, model și codurile de pe plăci.</p>
+      </div>
+    </div>
+    <div class="library-form-grid">
+      <label>
+        Marcă <span aria-hidden="true">*</span>
+        <select name="marca_id" data-library-brand required>
+          <option value="">Selectează marca</option>
+          <% brands.forEach(brand => { %>
+            <option
+              value="<%= brand.id %>"
+              <%= Number(values.marca_id) === Number(brand.id) ? 'selected' : '' %>
+            ><%= brand.nume %></option>
+          <% }) %>
+        </select>
+      </label>
+
+      <label>
+        Familie / serie
+        <select name="familie_id" data-library-family>
+          <option value="">Fără familie</option>
+          <% families.forEach(family => { %>
+            <option
+              value="<%= family.id %>"
+              data-brand-id="<%= family.marca_id %>"
+              <%= Number(values.familie_id) === Number(family.id) ? 'selected' : '' %>
+            ><%= family.nume %></option>
+          <% }) %>
+        </select>
+      </label>
+
+      <label>
+        Familie nouă
+        <input
+          type="text"
+          name="familie_noua"
+          value="<%= values.familie_noua %>"
+          maxlength="100"
+          placeholder="Completează numai dacă nu există"
+        >
+      </label>
+
+      <label>
+        Model <span aria-hidden="true">*</span>
+        <input
+          type="text"
+          name="model"
+          value="<%= values.model %>"
+          maxlength="150"
+          list="library-model-options"
+          autocomplete="off"
+          data-library-model-input
+          required
+        >
+        <datalist id="library-model-options" data-library-model-list>
+          <% models.forEach(model => { %>
+            <option
+              value="<%= model.model %>"
+              data-brand-id="<%= model.marca_id %>"
+              data-family-id="<%= model.familie_id || '' %>"
+            ></option>
+          <% }) %>
+        </datalist>
+      </label>
+
+      <label class="library-form-full">
+        Descriere model
+        <textarea
+          name="model_descriere"
+          rows="2"
+          maxlength="2000"
+        ><%= values.model_descriere %></textarea>
+      </label>
+
+      <% [
+        ['cod_sasiu', 'Cod șasiu'],
+        ['cod_placa_baza', 'Cod placă de bază'],
+        ['cod_sursa', 'Cod sursă'],
+        ['cod_tcon', 'Cod T-Con'],
+        ['cod_panou', 'Cod panou']
+      ].forEach(([name, label]) => { %>
+        <label>
+          <%= label %>
+          <input
+            type="text"
+            name="<%= name %>"
+            value="<%= values[name] %>"
+            maxlength="180"
+          >
+        </label>
+      <% }) %>
+
+      <label class="library-form-full">
+        Alte coduri
+        <textarea
+          name="alte_coduri"
+          rows="2"
+          maxlength="2000"
+        ><%= values.alte_coduri %></textarea>
+      </label>
+    </div>
+  </section>
+
+  <section class="panel library-form-section">
+    <div class="library-form-heading">
+      <span>B</span>
+      <div>
+        <h2>Defect</h2>
+        <p>Titlul și cel puțin o descriere tehnică sunt obligatorii.</p>
+      </div>
+    </div>
+    <div class="library-form-grid">
+      <label class="library-form-full">
+        Titlu <span aria-hidden="true">*</span>
+        <input
+          type="text"
+          name="titlu"
+          value="<%= values.titlu %>"
+          maxlength="180"
+          placeholder="Ex.: Restart repetat după apariția imaginii"
+          required
+        >
+      </label>
+      <% [
+        ['simptom', 'Simptom'],
+        ['defect_reclamat', 'Defect reclamat'],
+        ['manifestare', 'Manifestare'],
+        ['diagnostic', 'Diagnostic'],
+        ['cauza_identificata', 'Cauză identificată']
+      ].forEach(([name, label]) => { %>
+        <label class="<%= name === 'simptom' ? 'library-form-full' : '' %>">
+          <%= label %>
+          <textarea name="<%= name %>" rows="3"><%= values[name] %></textarea>
+        </label>
+      <% }) %>
+    </div>
+  </section>
+
+  <section class="panel library-form-section">
+    <div class="library-form-heading">
+      <span>C</span>
+      <div>
+        <h2>Soluție</h2>
+        <p>Intervenția, măsurătorile și componentele folosite.</p>
+      </div>
+    </div>
+    <div class="library-form-grid">
+      <% [
+        ['solutie', 'Soluție'],
+        ['masuratori', 'Măsurători'],
+        ['componente_schimbate', 'Componente schimbate'],
+        ['valori_componente', 'Valori componente'],
+        ['firmware_folosit', 'Firmware folosit'],
+        ['observatii', 'Observații']
+      ].forEach(([name, label]) => { %>
+        <label class="<%= ['solutie', 'observatii'].includes(name) ? 'library-form-full' : '' %>">
+          <%= label %>
+          <textarea name="<%= name %>" rows="3"><%= values[name] %></textarea>
+        </label>
+      <% }) %>
+    </div>
+  </section>
+
+  <section class="panel library-form-section">
+    <div class="library-form-heading">
+      <span>D</span>
+      <div>
+        <h2>Clasificare</h2>
+        <p>Valori standardizate pentru filtrare.</p>
+      </div>
+    </div>
+    <div class="library-form-grid library-classification-grid">
+      <label>
+        Dificultate
+        <select name="dificultate" required>
+          <% Object.entries(difficulties).forEach(([value, label]) => { %>
+            <option
+              value="<%= value %>"
+              <%= values.dificultate === value ? 'selected' : '' %>
+            ><%= label %></option>
+          <% }) %>
+        </select>
+      </label>
+      <label>
+        Rezultat
+        <select name="rezultat" required>
+          <% Object.entries(results).forEach(([value, label]) => { %>
+            <option
+              value="<%= value %>"
+              <%= values.rezultat === value ? 'selected' : '' %>
+            ><%= label %></option>
+          <% }) %>
+        </select>
+      </label>
+      <label>
+        Status verificare
+        <select name="status_verificare" required>
+          <% Object.entries(verificationStatuses).forEach(([value, label]) => { %>
+            <option
+              value="<%= value %>"
+              <%= values.status_verificare === value ? 'selected' : '' %>
+            ><%= label %></option>
+          <% }) %>
+        </select>
+      </label>
+    </div>
+  </section>
+
+  <section class="panel library-form-section">
+    <div class="library-form-heading">
+      <span>E</span>
+      <div>
+        <h2>Atașamente</h2>
+        <p>
+          JPEG, PNG sau WebP până la 15 MB; PDF până la 40 MB.
+          Maximum 20 de fișiere și 200 MB per caz.
+        </p>
+      </div>
+    </div>
+    <label class="library-upload-dropzone">
+      <span>Selectează imagini sau PDF-uri</span>
+      <small>Fișierele sunt verificate după conținut, nu numai după extensie.</small>
+      <input
+        type="file"
+        accept="image/jpeg,image/png,image/webp,application/pdf"
+        multiple
+        data-library-files
+      >
+    </label>
+    <div
+      class="library-upload-queue"
+      data-library-upload-queue
+      aria-live="polite"
+    ></div>
+  </section>
+
+  <div class="library-form-actions">
+    <a
+      class="button ghost"
+      href="<%= isEdit ? `/biblioteca-defecte/cazuri/${caseId}` : '/biblioteca-defecte' %>"
+    >Renunță</a>
+    <button class="button primary" type="submit" data-library-save>
+      <%= isEdit ? 'Salvează modificările' : 'Salvează cazul' %>
+    </button>
+  </div>
+</form>
+
+<%- include('partials/footer') %>

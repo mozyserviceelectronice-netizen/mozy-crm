@@ -1,0 +1,183 @@
+<%
+const successMessages = {
+  marca_creata: 'Marca a fost adăugată.',
+  marca_actualizata: 'Marca a fost actualizată.',
+  marca_status: 'Statusul mărcii a fost actualizat.',
+  familie_creata: 'Familia a fost adăugată.',
+  familie_actualizata: 'Familia a fost actualizată.',
+  familie_status: 'Statusul familiei a fost actualizat.'
+};
+const errorMessages = {
+  marca_goala: 'Numele mărcii este obligatoriu.',
+  marca_invalida: 'Marca nu este validă.',
+  marca_existenta: 'Marca există deja.',
+  familie_invalida: 'Familia sau marca nu este validă.',
+  familie_existenta: 'Familia există deja pentru marca selectată.'
+};
+%>
+<%- include('partials/header', {
+  title: 'Administrare bibliotecă - Mozy CRM',
+  active
+}) %>
+
+<nav class="library-breadcrumb" aria-label="Navigare bibliotecă">
+  <a href="/biblioteca-defecte">Biblioteca defecte</a>
+  <span aria-hidden="true">›</span>
+  <span>Administrare</span>
+</nav>
+
+<div class="page-heading library-page-heading">
+  <div>
+    <span class="eyebrow">Administrator</span>
+    <h1>Structura bibliotecii</h1>
+    <p>Mărcile și familiile sunt dezactivate logic, fără ștergerea cazurilor.</p>
+  </div>
+  <a class="button ghost" href="/biblioteca-defecte">
+    Înapoi la bibliotecă
+  </a>
+</div>
+
+<% if (successMessages[success]) { %>
+  <div class="reception-message success" role="status">
+    <%= successMessages[success] %>
+  </div>
+<% } %>
+<% if (errorMessages[error]) { %>
+  <div class="reception-message error" role="alert">
+    <%= errorMessages[error] %>
+  </div>
+<% } %>
+
+<div class="library-admin-grid">
+  <section class="panel">
+    <h2>Adaugă marcă</h2>
+    <form
+      method="post"
+      action="/biblioteca-defecte/administrare/marci"
+      class="stack-form"
+    >
+      <label>
+        Nume marcă
+        <input type="text" name="nume" maxlength="80" required>
+      </label>
+      <button class="button primary" type="submit">Adaugă marcă</button>
+    </form>
+  </section>
+
+  <section class="panel">
+    <h2>Adaugă familie / serie</h2>
+    <form
+      method="post"
+      action="/biblioteca-defecte/administrare/familii"
+      class="stack-form"
+    >
+      <label>
+        Marcă
+        <select name="marca_id" required>
+          <option value="">Selectează</option>
+          <% brands.filter(item => item.activa).forEach(brand => { %>
+            <option value="<%= brand.id %>"><%= brand.nume %></option>
+          <% }) %>
+        </select>
+      </label>
+      <label>
+        Nume familie
+        <input type="text" name="nume" maxlength="100" required>
+      </label>
+      <button class="button primary" type="submit">Adaugă familie</button>
+    </form>
+  </section>
+</div>
+
+<section class="panel">
+  <div class="panel-title">
+    <h2>Mărci</h2>
+    <span class="library-result-count"><%= brands.length %></span>
+  </div>
+  <div class="library-admin-list">
+    <% brands.forEach(brand => { %>
+      <article>
+        <form
+          method="post"
+          action="/biblioteca-defecte/administrare/marci/<%= brand.id %>"
+          class="library-admin-edit"
+        >
+          <input
+            type="text"
+            name="nume"
+            value="<%= brand.nume %>"
+            maxlength="80"
+            required
+          >
+          <button class="button ghost compact" type="submit">Salvează</button>
+        </form>
+        <form
+          method="post"
+          action="/biblioteca-defecte/administrare/marci/<%= brand.id %>/status"
+          data-confirm="<%= brand.activa ? 'Dezactivezi marca? Modelele și cazurile existente nu se șterg.' : 'Reactivezi marca?' %>"
+        >
+          <input type="hidden" name="activa" value="<%= brand.activa ? '0' : '1' %>">
+          <button
+            class="button <%= brand.activa ? 'danger' : 'primary' %> compact"
+            type="submit"
+          ><%= brand.activa ? 'Dezactivează' : 'Reactivează' %></button>
+        </form>
+      </article>
+    <% }) %>
+  </div>
+</section>
+
+<section class="panel">
+  <div class="panel-title">
+    <h2>Familii / serii</h2>
+    <span class="library-result-count"><%= families.length %></span>
+  </div>
+  <div class="library-admin-list">
+    <% families.forEach(family => { 
+      const brand = brands.find(item => Number(item.id) === Number(family.marca_id));
+    %>
+      <article>
+        <span class="library-admin-parent"><%= brand?.nume || 'Marcă necunoscută' %></span>
+        <form
+          method="post"
+          action="/biblioteca-defecte/administrare/familii/<%= family.id %>"
+          class="library-admin-edit"
+        >
+          <input
+            type="text"
+            name="nume"
+            value="<%= family.nume %>"
+            maxlength="100"
+            required
+          >
+          <button class="button ghost compact" type="submit">Salvează</button>
+        </form>
+        <form
+          method="post"
+          action="/biblioteca-defecte/administrare/familii/<%= family.id %>/status"
+          data-confirm="<%= family.activa ? 'Dezactivezi familia? Modelele și cazurile existente nu se șterg.' : 'Reactivezi familia?' %>"
+        >
+          <input type="hidden" name="activa" value="<%= family.activa ? '0' : '1' %>">
+          <button
+            class="button <%= family.activa ? 'danger' : 'primary' %> compact"
+            type="submit"
+          ><%= family.activa ? 'Dezactivează' : 'Reactivează' %></button>
+        </form>
+      </article>
+    <% }) %>
+  </div>
+</section>
+
+<section class="panel library-admin-note">
+  <h2>Modele</h2>
+  <p>
+    Modelele se creează automat, fără duplicate de litere sau spații,
+    când este salvat primul caz. Modelele existente pot fi selectate din
+    formularul „Adaugă defect”.
+  </p>
+  <a class="button primary" href="/biblioteca-defecte/cazuri/nou">
+    Adaugă model și defect
+  </a>
+</section>
+
+<%- include('partials/footer') %>

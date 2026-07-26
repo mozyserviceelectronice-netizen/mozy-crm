@@ -8,7 +8,7 @@
   >
   <meta name="robots" content="noindex,nofollow">
   <title><%= title || 'Mozy CRM' %></title>
-  <link rel="stylesheet" href="/styles.css?v=1.8.0">
+  <link rel="stylesheet" href="/styles.css?v=1.9.0">
   <meta name="csrf-token" content="<%= csrfToken %>">
 </head>
 
@@ -43,6 +43,13 @@
           href="/receptie"
         >
           Fi&#537;e
+        </a>
+
+        <a
+          class="<%= active === 'biblioteca-defecte' ? 'active' : '' %>"
+          href="/biblioteca-defecte"
+        >
+          Biblioteca defecte
         </a>
 
         <a

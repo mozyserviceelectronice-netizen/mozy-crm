@@ -26,6 +26,10 @@ import { registerReceptionLabelRoutes } from './reception-label-routes.js';
 import { registerTestModeRoutes } from './test-mode-routes.js';
 import { registerTechnicalSheetRoutes } from './technical-sheet-routes.js';
 import { registerServiceDocumentRoutes } from './service-document-routes.js';
+import {
+  defectLibraryDashboardData,
+  registerDefectLibraryRoutes
+} from './defect-library-routes.js';
 import { generateReceptionPdf } from './reception-pdf.js';
 import {
   sendWhatsAppPdf,
@@ -767,7 +771,7 @@ app.get('/', requireAuth, async (req, res, next) => {
       1
     );
 
-    const [metrics, fiseRecente] =
+    const [metrics, fiseRecente, defectLibrary] =
       await Promise.all([
         query(`
           SELECT
@@ -807,13 +811,16 @@ app.get('/', requireAuth, async (req, res, next) => {
           ORDER BY
             r.id DESC
           LIMIT 100
-        `, [dataSelectata])
+        `, [dataSelectata]),
+
+        defectLibraryDashboardData()
       ]);
 
     res.render('dashboard', {
       user: req.user,
       metrics: metrics.rows[0],
       fiseRecente: fiseRecente.rows,
+      defectLibrary,
       dataSelectata,
       dataAnterioara,
       dataUrmatoare,
@@ -2726,6 +2733,7 @@ registerWarrantyRoutes(app, requireAuth);
 registerTestModeRoutes(app, requireAuth);
 registerTechnicalSheetRoutes(app, { requireAuth });
 registerServiceDocumentRoutes(app, requireAuth);
+registerDefectLibraryRoutes(app, requireAuth);
 
 app.use((error, req, res, _next) => {
   logError(error, req);

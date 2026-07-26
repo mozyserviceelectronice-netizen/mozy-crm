@@ -1,0 +1,72 @@
+<%- include('partials/header', {
+  title: `${family.nume} - Biblioteca defecte`,
+  active
+}) %>
+
+<nav class="library-breadcrumb" aria-label="Navigare bibliotecă">
+  <a href="/biblioteca-defecte">Biblioteca defecte</a>
+  <span aria-hidden="true">›</span>
+  <a href="/biblioteca-defecte/marci/<%= family.marca_id %>">
+    <%= family.marca %>
+  </a>
+  <span aria-hidden="true">›</span>
+  <span><%= family.nume %></span>
+</nav>
+
+<div class="page-heading library-page-heading">
+  <div>
+    <span class="eyebrow">Familie / serie</span>
+    <h1><%= family.nume %></h1>
+    <p><%= family.marca %></p>
+  </div>
+  <div class="page-actions">
+    <a
+      class="button ghost"
+      href="/biblioteca-defecte/marci/<%= family.marca_id %>"
+    >Înapoi la <%= family.marca %></a>
+    <a
+      class="button primary"
+      href="/biblioteca-defecte/cazuri/nou?marca_id=<%= family.marca_id %>&familie_id=<%= family.id %>"
+    >+ Adaugă defect</a>
+  </div>
+</div>
+
+<section class="panel">
+  <div class="panel-title">
+    <h2>Modele</h2>
+    <span class="library-result-count"><%= models.length %></span>
+  </div>
+
+  <% if (!models.length) { %>
+    <div class="library-empty-state">
+      <strong>Nu există modele în această familie.</strong>
+      <span>Adaugă primul model împreună cu un caz tehnic.</span>
+      <a
+        class="button primary"
+        href="/biblioteca-defecte/cazuri/nou?marca_id=<%= family.marca_id %>&familie_id=<%= family.id %>"
+      >Adaugă model</a>
+    </div>
+  <% } else { %>
+    <div class="library-model-list">
+      <% models.forEach(model => { %>
+        <a
+          class="library-model-row"
+          href="/biblioteca-defecte/modele/<%= model.id %>"
+        >
+          <span>
+            <strong><%= model.model %></strong>
+            <% if (model.descriere) { %>
+              <small><%= model.descriere %></small>
+            <% } %>
+          </span>
+          <span>
+            <strong><%= model.numar_cazuri %></strong>
+            <small>cazuri</small>
+          </span>
+        </a>
+      <% }) %>
+    </div>
+  <% } %>
+</section>
+
+<%- include('partials/footer') %>

@@ -820,6 +820,393 @@
       });
     });
 
+  function initializeLibrarySelectors(root = document) {
+    root.querySelectorAll(
+      '[data-library-filters], [data-library-case-form]'
+    ).forEach(container => {
+      const brand = container.querySelector('[data-library-brand]');
+      const family = container.querySelector('[data-library-family]');
+      const model = container.querySelector('[data-library-model]');
+      const modelList = container.querySelector(
+        '[data-library-model-list]'
+      );
+      if (!brand) return;
+
+      const familyOptions = family
+        ? [...family.options].map(option => option.cloneNode(true))
+        : [];
+      const modelOptions = model
+        ? [...model.options].map(option => option.cloneNode(true))
+        : [];
+      const datalistOptions = modelList
+        ? [...modelList.options].map(option => option.cloneNode(true))
+        : [];
+
+      const refill = (select, options, predicate) => {
+        if (!select) return;
+        const selected = select.value;
+        select.replaceChildren(
+          ...options
+            .filter(predicate)
+            .map(option => option.cloneNode(true))
+        );
+        if ([...select.options].some(option => option.value === selected)) {
+          select.value = selected;
+        } else {
+          select.value = '';
+        }
+      };
+
+      const sync = () => {
+        const brandId = brand.value;
+        const familyId = family?.value || '';
+        refill(family, familyOptions, option =>
+          !option.value ||
+          !brandId ||
+          option.dataset.brandId === brandId
+        );
+        const selectedFamily = family?.value || familyId;
+        refill(model, modelOptions, option =>
+          !option.value ||
+          (
+            (!brandId || option.dataset.brandId === brandId) &&
+            (
+              !selectedFamily ||
+              option.dataset.familyId === selectedFamily
+            )
+          )
+        );
+        if (modelList) {
+          modelList.replaceChildren(
+            ...datalistOptions
+              .filter(option =>
+                (!brandId || option.dataset.brandId === brandId) &&
+                (
+                  !selectedFamily ||
+                  option.dataset.familyId === selectedFamily
+                )
+              )
+              .map(option => option.cloneNode(true))
+          );
+        }
+      };
+
+      brand.addEventListener('change', () => {
+        if (family) family.value = '';
+        if (model) model.value = '';
+        sync();
+      });
+      family?.addEventListener('change', () => {
+        if (model) model.value = '';
+        sync();
+      });
+      sync();
+    });
+  }
+
+  function selectedLibraryFiles(container) {
+    const input = container.querySelector('[data-library-files]');
+    return input ? [...input.files] : [];
+  }
+
+  function validateLibraryFiles(files) {
+    if (files.length > 20) {
+      throw new Error('Poți selecta maximum 20 de fișiere.');
+    }
+    const total = files.reduce((sum, file) => sum + file.size, 0);
+    if (total > 200 * 1024 * 1024) {
+      throw new Error('Fișierele selectate depășesc 200 MB.');
+    }
+    for (const file of files) {
+      const extension = file.name
+        .slice(file.name.lastIndexOf('.'))
+        .toLowerCase();
+      const isPdf = extension === '.pdf';
+      const allowedImage = ['.jpg', '.jpeg', '.png', '.webp']
+        .includes(extension);
+      if (!isPdf && !allowedImage) {
+        throw new Error(
+          `${file.name}: sunt permise numai JPEG, PNG, WebP și PDF.`
+        );
+      }
+      if (isPdf && file.size > 40 * 1024 * 1024) {
+        throw new Error(`${file.name}: PDF-ul depășește 40 MB.`);
+      }
+      if (allowedImage && file.size > 15 * 1024 * 1024) {
+        throw new Error(`${file.name}: imaginea depășește 15 MB.`);
+      }
+    }
+  }
+
+  function renderLibraryUploadQueue(container, files, statuses = []) {
+    const queue = container.querySelector(
+      '[data-library-upload-queue]'
+    );
+    if (!queue) return;
+    queue.replaceChildren();
+    files.forEach((file, index) => {
+      const item = document.createElement('div');
+      item.className = `library-upload-item ${
+        statuses[index]?.state || ''
+      }`.trim();
+      const name = document.createElement('span');
+      name.textContent = file.name;
+      const status = document.createElement('small');
+      status.textContent =
+        statuses[index]?.message ||
+        `${(file.size / (1024 * 1024)).toFixed(1)} MB`;
+      item.append(name, status);
+      queue.append(item);
+    });
+  }
+
+  async function uploadLibraryFiles({
+    endpoint,
+    files,
+    description,
+    container
+  }) {
+    const statuses = files.map(() => ({
+      state: 'pending',
+      message: 'În așteptare'
+    }));
+    renderLibraryUploadQueue(container, files, statuses);
+    let destination = endpoint.replace(/\/atasamente$/, '');
+
+    for (let index = 0; index < files.length; index += 1) {
+      const file = files[index];
+      statuses[index] = {
+        state: 'uploading',
+        message: `Se încarcă ${index + 1}/${files.length}…`
+      };
+      renderLibraryUploadQueue(container, files, statuses);
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+          'Content-Type': file.type || 'application/octet-stream',
+          'X-File-Name': encodeURIComponent(file.name),
+          'X-File-Description': encodeURIComponent(description || ''),
+          'X-CSRF-Token': token || '',
+          Accept: 'application/json'
+        },
+        body: file
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        statuses[index] = {
+          state: 'error',
+          message: data.error || 'Încărcarea a eșuat.'
+        };
+        renderLibraryUploadQueue(container, files, statuses);
+        throw new Error(
+          `${file.name}: ${data.error || 'încărcarea a eșuat.'}`
+        );
+      }
+      statuses[index] = {
+        state: 'complete',
+        message: 'Încărcat'
+      };
+      destination = data.url || destination;
+      renderLibraryUploadQueue(container, files, statuses);
+    }
+    return destination;
+  }
+
+  initializeLibrarySelectors();
+
+  document
+    .querySelectorAll('[data-library-files]')
+    .forEach(input => {
+      input.addEventListener('change', () => {
+        const container = input.closest(
+          '[data-library-case-form], [data-library-attachment-form], .library-form-section'
+        ) || document;
+        const files = [...input.files];
+        try {
+          validateLibraryFiles(files);
+          input.setCustomValidity('');
+          renderLibraryUploadQueue(container, files);
+        } catch (error) {
+          input.setCustomValidity(error.message);
+          input.reportValidity();
+          renderLibraryUploadQueue(container, files, files.map(() => ({
+            state: 'error',
+            message: error.message
+          })));
+        }
+      });
+    });
+
+  const libraryCaseForm = document.querySelector(
+    '[data-library-case-form]'
+  );
+  libraryCaseForm?.addEventListener('submit', async event => {
+    const files = selectedLibraryFiles(libraryCaseForm);
+    if (!files.length) return;
+    event.preventDefault();
+    try {
+      validateLibraryFiles(files);
+    } catch (error) {
+      window.alert(error.message);
+      return;
+    }
+
+    const saveButton = libraryCaseForm.querySelector(
+      '[data-library-save]'
+    );
+    const originalText = saveButton?.textContent;
+    let caseUrl = '';
+    if (saveButton) {
+      saveButton.disabled = true;
+      saveButton.textContent = 'Se salvează…';
+    }
+
+    try {
+      const formData = new FormData(libraryCaseForm);
+      const body = new URLSearchParams();
+      for (const [name, value] of formData.entries()) {
+        if (typeof value === 'string' && name !== '_csrf') {
+          body.append(name, value);
+        }
+      }
+      const response = await fetch(libraryCaseForm.action, {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'X-CSRF-Token': token || '',
+          Accept: 'application/json'
+        },
+        body
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(
+          data.errors?.join('\n') ||
+          data.error ||
+          'Cazul nu a putut fi salvat.'
+        );
+      }
+      caseUrl = data.url;
+      if (saveButton) saveButton.textContent = 'Se încarcă fișierele…';
+      const destination = await uploadLibraryFiles({
+        endpoint: `${caseUrl}/atasamente`,
+        files,
+        description: '',
+        container: libraryCaseForm
+      });
+      window.location.assign(destination || caseUrl);
+    } catch (error) {
+      if (caseUrl) {
+        window.alert(
+          `Cazul a fost salvat, dar unele fișiere nu au fost încărcate:\n${error.message}`
+        );
+        window.location.assign(caseUrl);
+        return;
+      }
+      window.alert(error.message);
+      if (saveButton) {
+        saveButton.disabled = false;
+        saveButton.textContent = originalText;
+      }
+    }
+  });
+
+  document
+    .querySelectorAll('[data-library-attachment-form]')
+    .forEach(form => {
+      form.addEventListener('submit', async event => {
+        event.preventDefault();
+        const files = selectedLibraryFiles(form);
+        if (!files.length) return;
+        try {
+          validateLibraryFiles(files);
+          const button = form.querySelector('button[type="submit"]');
+          const original = button.textContent;
+          button.disabled = true;
+          button.textContent = 'Se încarcă…';
+          const destination = await uploadLibraryFiles({
+            endpoint: form.action,
+            files,
+            description:
+              form.querySelector('[data-library-file-description]')
+                ?.value || '',
+            container: form
+          });
+          window.location.assign(destination);
+          button.textContent = original;
+        } catch (error) {
+          window.alert(error.message);
+          const button = form.querySelector('button[type="submit"]');
+          if (button) button.disabled = false;
+        }
+      });
+    });
+
+  const viewer = document.querySelector('[data-library-viewer]');
+  if (viewer instanceof HTMLDialogElement) {
+    const imageButtons = [
+      ...document.querySelectorAll('[data-library-image]')
+    ];
+    const image = viewer.querySelector('[data-library-viewer-image]');
+    const title = viewer.querySelector('[data-library-viewer-title]');
+    let currentIndex = 0;
+    let zoom = 1;
+
+    const renderImage = index => {
+      if (!imageButtons.length) return;
+      currentIndex =
+        (index + imageButtons.length) % imageButtons.length;
+      const button = imageButtons[currentIndex];
+      image.src = button.dataset.imageUrl;
+      image.alt = button.dataset.imageName || 'Imagine tehnică';
+      title.textContent = button.dataset.imageName || 'Imagine';
+      zoom = 1;
+      image.style.transform = 'scale(1)';
+      viewer.querySelector('[data-library-zoom-reset]').textContent =
+        '100%';
+    };
+
+    const setZoom = value => {
+      zoom = Math.min(3, Math.max(0.5, value));
+      image.style.transform = `scale(${zoom})`;
+      viewer.querySelector('[data-library-zoom-reset]').textContent =
+        `${Math.round(zoom * 100)}%`;
+    };
+
+    imageButtons.forEach((button, index) => {
+      button.addEventListener('click', () => {
+        renderImage(index);
+        viewer.showModal();
+      });
+    });
+    viewer
+      .querySelector('[data-library-viewer-close]')
+      .addEventListener('click', () => viewer.close());
+    viewer
+      .querySelector('[data-library-viewer-previous]')
+      .addEventListener('click', () => renderImage(currentIndex - 1));
+    viewer
+      .querySelector('[data-library-viewer-next]')
+      .addEventListener('click', () => renderImage(currentIndex + 1));
+    viewer
+      .querySelector('[data-library-zoom-out]')
+      .addEventListener('click', () => setZoom(zoom - 0.25));
+    viewer
+      .querySelector('[data-library-zoom-in]')
+      .addEventListener('click', () => setZoom(zoom + 0.25));
+    viewer
+      .querySelector('[data-library-zoom-reset]')
+      .addEventListener('click', () => setZoom(1));
+    viewer.addEventListener('click', event => {
+      if (event.target === viewer) viewer.close();
+    });
+    viewer.addEventListener('close', () => {
+      image.removeAttribute('src');
+    });
+  }
+
   const toggle = document.querySelector('.mobile-menu-toggle');
   const backdrop = document.querySelector('.mobile-menu-backdrop');
   const sidebar = document.getElementById('crm-sidebar');

@@ -1,0 +1,361 @@
+<%
+const dateFormatter = new Intl.DateTimeFormat('ro-RO', {
+  dateStyle: 'medium',
+  timeStyle: 'short',
+  timeZone: 'Europe/Bucharest'
+});
+const detailGroups = [
+  {
+    title: 'Defect și diagnostic',
+    fields: [
+      ['Simptom', caseRow.simptom],
+      ['Defect reclamat', caseRow.defect_reclamat],
+      ['Manifestare', caseRow.manifestare],
+      ['Diagnostic', caseRow.diagnostic],
+      ['Cauză identificată', caseRow.cauza_identificata]
+    ]
+  },
+  {
+    title: 'Soluție și măsurători',
+    fields: [
+      ['Soluție', caseRow.solutie],
+      ['Măsurători', caseRow.masuratori],
+      ['Componente schimbate', caseRow.componente_schimbate],
+      ['Valori componente', caseRow.valori_componente],
+      ['Firmware folosit', caseRow.firmware_folosit],
+      ['Observații', caseRow.observatii]
+    ]
+  }
+];
+const codes = [
+  ['Șasiu', caseRow.cod_sasiu],
+  ['Placă de bază', caseRow.cod_placa_baza],
+  ['Sursă', caseRow.cod_sursa],
+  ['T-Con', caseRow.cod_tcon],
+  ['Panou', caseRow.cod_panou],
+  ['Alte coduri', caseRow.alte_coduri]
+].filter(([, value]) => value);
+const images = attachments.filter(item => item.tip === 'imagine');
+const pdfs = attachments.filter(item => item.tip === 'pdf');
+%>
+<%- include('partials/header', {
+  title: `${caseRow.titlu} - Biblioteca defecte`,
+  active
+}) %>
+
+<nav class="library-breadcrumb" aria-label="Navigare bibliotecă">
+  <a href="/biblioteca-defecte">Biblioteca defecte</a>
+  <span aria-hidden="true">›</span>
+  <a href="/biblioteca-defecte/marci/<%= caseRow.marca_id %>">
+    <%= caseRow.marca %>
+  </a>
+  <% if (caseRow.familie_id) { %>
+    <span aria-hidden="true">›</span>
+    <a href="/biblioteca-defecte/familii/<%= caseRow.familie_id %>">
+      <%= caseRow.familie %>
+    </a>
+  <% } %>
+  <span aria-hidden="true">›</span>
+  <a href="/biblioteca-defecte/modele/<%= caseRow.model_id %>">
+    <%= caseRow.model %>
+  </a>
+  <span aria-hidden="true">›</span>
+  <span><%= caseRow.titlu %></span>
+</nav>
+
+<% if (Object.values(messages).some(Boolean)) { %>
+  <div class="reception-message success" role="status">
+    <% if (messages.created) { %>Cazul a fost creat.<% } %>
+    <% if (messages.updated) { %>Cazul a fost actualizat.<% } %>
+    <% if (messages.uploaded) { %>Atașamentele au fost încărcate.<% } %>
+    <% if (messages.removed) { %>Atașamentul a fost eliminat logic.<% } %>
+    <% if (messages.archived) { %>Cazul a fost arhivat.<% } %>
+    <% if (messages.restored) { %>Cazul a fost restaurat.<% } %>
+  </div>
+<% } %>
+
+<div class="page-heading library-case-heading">
+  <div>
+    <span class="eyebrow">
+      <%= caseRow.marca %> · <%= caseRow.model %>
+    </span>
+    <h1><%= caseRow.titlu %></h1>
+    <div class="library-case-badges">
+      <span class="badge library-status-<%= caseRow.status_verificare %>">
+        <%= verificationStatuses[caseRow.status_verificare] %>
+      </span>
+      <span class="badge"><%= difficulties[caseRow.dificultate] %></span>
+      <span class="badge"><%= results[caseRow.rezultat] %></span>
+    </div>
+  </div>
+  <div class="page-actions">
+    <a
+      class="button ghost"
+      href="/biblioteca-defecte/modele/<%= caseRow.model_id %>"
+    >Revino la model</a>
+    <a
+      class="button primary"
+      href="/biblioteca-defecte/cazuri/<%= caseRow.id %>/editare"
+    >Editare</a>
+  </div>
+</div>
+
+<section class="panel library-case-overview">
+  <div>
+    <span>Marcă</span>
+    <strong><%= caseRow.marca %></strong>
+  </div>
+  <div>
+    <span>Familie</span>
+    <strong><%= caseRow.familie || 'Fără familie' %></strong>
+  </div>
+  <div>
+    <span>Model</span>
+    <strong><%= caseRow.model %></strong>
+  </div>
+  <div>
+    <span>Autor</span>
+    <strong><%= caseRow.autor %></strong>
+  </div>
+</section>
+
+<% if (codes.length) { %>
+  <section class="panel">
+    <h2>Coduri tehnice</h2>
+    <div class="library-code-grid">
+      <% codes.forEach(([label, value]) => { %>
+        <div>
+          <span><%= label %></span>
+          <code><%= value %></code>
+        </div>
+      <% }) %>
+    </div>
+  </section>
+<% } %>
+
+<div class="library-detail-grid">
+  <% detailGroups.forEach(group => { %>
+    <section class="panel library-detail-section">
+      <h2><%= group.title %></h2>
+      <% if (!group.fields.some(([, value]) => value)) { %>
+        <p class="empty">Nu există informații completate.</p>
+      <% } else { %>
+        <dl>
+          <% group.fields.filter(([, value]) => value).forEach(([label, value]) => { %>
+            <dt><%= label %></dt>
+            <dd><%= value %></dd>
+          <% }) %>
+        </dl>
+      <% } %>
+    </section>
+  <% }) %>
+</div>
+
+<section class="panel" id="atasamente">
+  <div class="panel-title">
+    <h2>Atașamente</h2>
+    <span class="library-result-count"><%= attachments.length %></span>
+  </div>
+
+  <% if (!attachments.length) { %>
+    <div class="library-empty-state compact">
+      <strong>Acest caz nu are atașamente.</strong>
+      <span>Poți adăuga imagini și PDF-uri mai jos.</span>
+    </div>
+  <% } %>
+
+  <% if (images.length) { %>
+    <div class="library-attachment-gallery">
+      <% images.forEach((attachment, index) => { %>
+        <article class="library-image-card">
+          <button
+            type="button"
+            class="library-image-open"
+            data-library-image
+            data-image-index="<%= index %>"
+            data-image-url="/biblioteca-defecte/cazuri/<%= caseRow.id %>/atasamente/<%= attachment.id %>"
+            data-image-name="<%= attachment.nume_original %>"
+          >
+            <img
+              src="/biblioteca-defecte/cazuri/<%= caseRow.id %>/atasamente/<%= attachment.id %>?thumb=1"
+              alt="<%= attachment.descriere || attachment.nume_original %>"
+              loading="lazy"
+            >
+          </button>
+          <div>
+            <strong><%= attachment.nume_original %></strong>
+            <small>
+              <%= formatBytes(attachment.dimensiune_bytes) %> ·
+              <%= attachment.incarcat_de %>
+            </small>
+            <% if (attachment.descriere) { %>
+              <p><%= attachment.descriere %></p>
+            <% } %>
+            <div class="library-attachment-actions">
+              <a
+                href="/biblioteca-defecte/cazuri/<%= caseRow.id %>/atasamente/<%= attachment.id %>?download=1"
+              >Descarcă</a>
+              <form
+                method="post"
+                action="/biblioteca-defecte/cazuri/<%= caseRow.id %>/atasamente/<%= attachment.id %>/sterge"
+                data-confirm="Elimini acest atașament din caz? Fișierul va fi păstrat pentru recuperare."
+              >
+                <button type="submit">Elimină</button>
+              </form>
+            </div>
+          </div>
+        </article>
+      <% }) %>
+    </div>
+  <% } %>
+
+  <% if (pdfs.length) { %>
+    <div class="library-pdf-list">
+      <% pdfs.forEach(attachment => { %>
+        <article>
+          <span class="library-pdf-icon" aria-hidden="true">PDF</span>
+          <div>
+            <strong><%= attachment.nume_original %></strong>
+            <small>
+              <%= formatBytes(attachment.dimensiune_bytes) %> ·
+              <%= attachment.incarcat_de %>
+            </small>
+            <% if (attachment.descriere) { %>
+              <p><%= attachment.descriere %></p>
+            <% } %>
+          </div>
+          <div class="library-attachment-actions">
+            <a
+              class="button ghost compact"
+              href="/biblioteca-defecte/cazuri/<%= caseRow.id %>/atasamente/<%= attachment.id %>"
+              target="_blank"
+              rel="noopener"
+            >Deschide PDF</a>
+            <a
+              class="button ghost compact"
+              href="/biblioteca-defecte/cazuri/<%= caseRow.id %>/atasamente/<%= attachment.id %>?download=1"
+            >Descarcă</a>
+            <form
+              method="post"
+              action="/biblioteca-defecte/cazuri/<%= caseRow.id %>/atasamente/<%= attachment.id %>/sterge"
+              data-confirm="Elimini acest PDF din caz? Fișierul va fi păstrat pentru recuperare."
+            >
+              <button class="button danger compact" type="submit">
+                Elimină
+              </button>
+            </form>
+          </div>
+        </article>
+      <% }) %>
+    </div>
+  <% } %>
+
+  <form
+    class="library-attachment-upload"
+    action="/biblioteca-defecte/cazuri/<%= caseRow.id %>/atasamente"
+    method="post"
+    data-library-attachment-form
+  >
+    <label class="library-upload-dropzone">
+      <span>Adaugă imagini sau PDF-uri</span>
+      <small>JPEG, PNG, WebP: 15 MB. PDF: 40 MB. Maximum 20 fișiere active.</small>
+      <input
+        type="file"
+        accept="image/jpeg,image/png,image/webp,application/pdf"
+        multiple
+        data-library-files
+        required
+      >
+    </label>
+    <label>
+      Descriere comună opțională
+      <input
+        type="text"
+        maxlength="300"
+        data-library-file-description
+      >
+    </label>
+    <div
+      class="library-upload-queue"
+      data-library-upload-queue
+      aria-live="polite"
+    ></div>
+    <button class="button primary" type="submit">
+      Încarcă atașamentele
+    </button>
+  </form>
+</section>
+
+<section class="panel library-case-footer">
+  <div>
+    <span>Creat</span>
+    <strong><%= dateFormatter.format(new Date(caseRow.created_at)) %></strong>
+    <small>de <%= caseRow.autor %></small>
+  </div>
+  <div>
+    <span>Ultima actualizare</span>
+    <strong><%= dateFormatter.format(new Date(caseRow.updated_at)) %></strong>
+    <small>de <%= caseRow.actualizat_de %></small>
+  </div>
+  <div class="library-case-state-actions">
+    <% if (caseRow.status_verificare === 'arhivat') { %>
+      <form
+        method="post"
+        action="/biblioteca-defecte/cazuri/<%= caseRow.id %>/restaureaza"
+      >
+        <button class="button ghost" type="submit">Restaurează</button>
+      </form>
+    <% } else { %>
+      <form
+        method="post"
+        action="/biblioteca-defecte/cazuri/<%= caseRow.id %>/arhiveaza"
+        data-confirm="Arhivezi acest caz? Îl vei putea restaura ulterior."
+      >
+        <button class="button ghost" type="submit">Arhivează</button>
+      </form>
+    <% } %>
+    <% if (isAdmin) { %>
+      <form
+        method="post"
+        action="/biblioteca-defecte/cazuri/<%= caseRow.id %>/sterge"
+        data-confirm="Ștergi logic acest caz? Nu va mai apărea în bibliotecă, iar fișierele nu vor mai fi accesibile."
+      >
+        <button class="button danger" type="submit">Șterge</button>
+      </form>
+    <% } %>
+  </div>
+</section>
+
+<dialog class="library-image-viewer" data-library-viewer>
+  <div class="library-viewer-toolbar">
+    <strong data-library-viewer-title>Imagine</strong>
+    <button
+      type="button"
+      class="button ghost compact"
+      data-library-viewer-close
+      aria-label="Închide"
+    >Închide</button>
+  </div>
+  <div class="library-viewer-stage">
+    <button
+      type="button"
+      class="library-viewer-navigation previous"
+      data-library-viewer-previous
+      aria-label="Imaginea anterioară"
+    >‹</button>
+    <img data-library-viewer-image alt="">
+    <button
+      type="button"
+      class="library-viewer-navigation next"
+      data-library-viewer-next
+      aria-label="Imaginea următoare"
+    >›</button>
+  </div>
+  <div class="library-viewer-zoom">
+    <button class="button ghost compact" type="button" data-library-zoom-out>−</button>
+    <button class="button ghost compact" type="button" data-library-zoom-reset>100%</button>
+    <button class="button ghost compact" type="button" data-library-zoom-in>+</button>
+  </div>
+</dialog>
+
+<%- include('partials/footer') %>

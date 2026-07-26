@@ -1,0 +1,94 @@
+<%
+const dateFormatter = new Intl.DateTimeFormat('ro-RO', {
+  dateStyle: 'medium',
+  timeStyle: 'short',
+  timeZone: 'Europe/Bucharest'
+});
+%>
+<%- include('partials/header', {
+  title: `${model.model} - Biblioteca defecte`,
+  active
+}) %>
+
+<nav class="library-breadcrumb" aria-label="Navigare bibliotecă">
+  <a href="/biblioteca-defecte">Biblioteca defecte</a>
+  <span aria-hidden="true">›</span>
+  <a href="/biblioteca-defecte/marci/<%= model.marca_id %>">
+    <%= model.marca %>
+  </a>
+  <% if (model.familie_id) { %>
+    <span aria-hidden="true">›</span>
+    <a href="/biblioteca-defecte/familii/<%= model.familie_id %>">
+      <%= model.familie %>
+    </a>
+  <% } %>
+  <span aria-hidden="true">›</span>
+  <span><%= model.model %></span>
+</nav>
+
+<div class="page-heading library-page-heading">
+  <div>
+    <span class="eyebrow"><%= model.marca %></span>
+    <h1><%= model.model %></h1>
+    <p><%= model.familie || 'Fără familie asociată' %></p>
+  </div>
+  <a
+    class="button primary"
+    href="/biblioteca-defecte/cazuri/nou?model_id=<%= model.id %>"
+  >+ Adaugă caz pentru acest model</a>
+</div>
+
+<% if (model.descriere) { %>
+  <section class="panel library-model-description">
+    <h2>Informații model</h2>
+    <p><%= model.descriere %></p>
+  </section>
+<% } %>
+
+<section class="panel">
+  <div class="panel-title">
+    <h2>Cazuri tehnice</h2>
+    <span class="library-result-count"><%= cases.length %></span>
+  </div>
+
+  <% if (!cases.length) { %>
+    <div class="library-empty-state">
+      <strong>Nu există cazuri pentru acest model.</strong>
+      <a
+        class="button primary"
+        href="/biblioteca-defecte/cazuri/nou?model_id=<%= model.id %>"
+      >Adaugă primul caz</a>
+    </div>
+  <% } else { %>
+    <div class="library-case-list">
+      <% cases.forEach(item => { %>
+        <a
+          class="library-case-row"
+          href="/biblioteca-defecte/cazuri/<%= item.id %>"
+        >
+          <span class="library-case-main">
+            <strong><%= item.titlu %></strong>
+            <% if (item.simptom) { %>
+              <span><%= item.simptom %></span>
+            <% } %>
+          </span>
+          <span class="library-case-meta">
+            <span class="badge library-status-<%= item.status_verificare %>">
+              <%= verificationStatuses[item.status_verificare] %>
+            </span>
+            <small>
+              <%= difficulties[item.dificultate] %> ·
+              <%= results[item.rezultat] %>
+            </small>
+            <small>
+              <%= item.numar_atasamente %> atașamente ·
+              <%= dateFormatter.format(new Date(item.updated_at)) %>
+            </small>
+          </span>
+        </a>
+      <% }) %>
+    </div>
+  <% } %>
+</section>
+
+<%- include('partials/footer') %>
