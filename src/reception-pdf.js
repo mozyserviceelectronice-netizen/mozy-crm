@@ -237,7 +237,6 @@ export async function generateReceptionPdf(reception, outputPath) {
       ['Data primirii', dateRo(reception.data_primire)],
       ['Client', reception.nume || 'Client'],
       ['Telefon', reception.telefon],
-      ['Adresă', reception.adresa_client],
       ['Echipament', equipmentName(reception)],
       ['Serie', reception.serie],
       [
