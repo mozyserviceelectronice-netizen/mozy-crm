@@ -12,6 +12,11 @@ const viewSource = fs.readFileSync(
   'utf8'
 );
 
+const appSource = fs.readFileSync(
+  new URL('../public/app.js', import.meta.url),
+  'utf8'
+);
+
 const headerSource = fs.readFileSync(
   new URL('../src/views/partials/header.ejs', import.meta.url),
   'utf8'
@@ -72,5 +77,22 @@ test('WhatsApp appears in navigation', () => {
   assert.match(
     headerSource,
     /href="\/conversatii"/
+  );
+});
+
+test('WhatsApp refreshes automatically when new messages arrive', () => {
+  assert.match(
+    routeSource,
+    /\/conversatii\/stare-live/
+  );
+
+  assert.match(
+    viewSource,
+    /data-whatsapp-live/
+  );
+
+  assert.match(
+    appSource,
+    /setInterval\(\s*checkLiveState,\s*2000/
   );
 });

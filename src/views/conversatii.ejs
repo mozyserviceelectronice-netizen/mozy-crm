@@ -171,7 +171,20 @@ function dataMesaj(value) {
   </div>
 <% } %>
 
-<section class="whatsapp-shell">
+<section
+  class="whatsapp-shell"
+  data-whatsapp-live
+  data-latest-message-id="<%=
+    typeof latestMessageId !== 'undefined'
+      ? latestMessageId
+      : 0
+  %>"
+  data-message-total="<%=
+    typeof messageTotal !== 'undefined'
+      ? messageTotal
+      : 0
+  %>"
+>
   <aside class="whatsapp-conversation-sidebar">
     <form
       class="whatsapp-search"
@@ -726,4 +739,3 @@ function dataMesaj(value) {
   });
 })();
 </script>
-

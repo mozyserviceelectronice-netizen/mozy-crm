@@ -401,10 +401,48 @@ async function clientMessages(clientId) {
   `, [clientId]);
 }
 
+async function whatsappLiveState() {
+  return query(`
+    SELECT
+      COALESCE(MAX(id), 0)::BIGINT
+        AS latest_message_id,
+      COUNT(*)::BIGINT
+        AS message_total
+    FROM crm.conversatii
+  `);
+}
+
 export function registerWhatsAppCrmRoutes(
   app,
   requireAuth
 ) {
+  app.get(
+    '/conversatii/stare-live',
+    requireAuth,
+    async (_req, res, next) => {
+      try {
+        const result = await whatsappLiveState();
+        const row = result.rows[0] || {};
+
+        res.set(
+          'Cache-Control',
+          'no-store, no-cache, must-revalidate, max-age=0'
+        );
+
+        return res.json({
+          latestMessageId: Number(
+            row.latest_message_id || 0
+          ),
+          messageTotal: Number(
+            row.message_total || 0
+          )
+        });
+      } catch (error) {
+        next(error);
+      }
+    }
+  );
+
   app.post(
     '/conversatii/marcheaza-tot-citit',
     requireAuth,
@@ -453,7 +491,16 @@ export function registerWhatsAppCrmRoutes(
           req.query.client
         );
 
-        const listResult = await conversationList(q);
+        const [
+          listResult,
+          liveStateResult
+        ] = await Promise.all([
+          conversationList(q),
+          whatsappLiveState()
+        ]);
+
+        const liveState =
+          liveStateResult.rows[0] || {};
 
         let selectedClientId = requestedClientId;
 
@@ -503,6 +550,12 @@ export function registerWhatsAppCrmRoutes(
           q,
           sent: req.query.sent === '1',
           errorCode: String(req.query.error || ''),
+          latestMessageId: Number(
+            liveState.latest_message_id || 0
+          ),
+          messageTotal: Number(
+            liveState.message_total || 0
+          ),
           active: 'conversatii'
         });
       } catch (error) {

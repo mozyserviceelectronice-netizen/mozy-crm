@@ -1472,3 +1472,207 @@ document.addEventListener('DOMContentLoaded', () => {
     saveNotes();
   });
 });
+
+/* WhatsApp live synchronization v1.0 */
+document.addEventListener('DOMContentLoaded', () => {
+  const shell = document.querySelector(
+    '[data-whatsapp-live]'
+  );
+
+  if (!shell) {
+    return;
+  }
+
+  let latestMessageId = Number(
+    shell.dataset.latestMessageId || 0
+  );
+
+  let messageTotal = Number(
+    shell.dataset.messageTotal || 0
+  );
+
+  let requestRunning = false;
+  let refreshPending = false;
+
+  const composer = document.querySelector(
+    '#whatsapp-message-input'
+  );
+
+  const mediaInput = document.querySelector(
+    '#whatsapp-media-input'
+  );
+
+  const notes = document.querySelector(
+    '.whatsapp-client-notes textarea'
+  );
+
+  const refreshNotice = document.createElement(
+    'button'
+  );
+
+  refreshNotice.type = 'button';
+  refreshNotice.className =
+    'button primary whatsapp-live-refresh';
+  refreshNotice.textContent =
+    'Mesaj nou primit — actualizează';
+  refreshNotice.hidden = true;
+
+  shell.before(refreshNotice);
+
+  const userIsEditing = () => {
+    const composerHasText = Boolean(
+      composer?.value.trim()
+    );
+
+    const attachmentSelected = Boolean(
+      mediaInput?.files?.length
+    );
+
+    const focusedField =
+      document.activeElement === composer ||
+      document.activeElement === notes;
+
+    return (
+      composerHasText ||
+      attachmentSelected ||
+      focusedField
+    );
+  };
+
+  const reloadPage = () => {
+    if (userIsEditing()) {
+      refreshPending = true;
+      refreshNotice.hidden = false;
+      return;
+    }
+
+    window.location.reload();
+  };
+
+  refreshNotice.addEventListener('click', () => {
+    window.location.reload();
+  });
+
+  const checkLiveState = async () => {
+    if (
+      requestRunning ||
+      document.visibilityState === 'hidden'
+    ) {
+      return;
+    }
+
+    requestRunning = true;
+
+    try {
+      const response = await fetch(
+        '/conversatii/stare-live',
+        {
+          method: 'GET',
+          credentials: 'same-origin',
+          cache: 'no-store',
+          headers: {
+            Accept: 'application/json'
+          }
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(
+          `HTTP ${response.status}`
+        );
+      }
+
+      const state = await response.json();
+
+      const nextLatestMessageId = Number(
+        state.latestMessageId || 0
+      );
+
+      const nextMessageTotal = Number(
+        state.messageTotal || 0
+      );
+
+      const changed =
+        nextLatestMessageId !== latestMessageId ||
+        nextMessageTotal !== messageTotal;
+
+      if (!changed) {
+        return;
+      }
+
+      latestMessageId = nextLatestMessageId;
+      messageTotal = nextMessageTotal;
+
+      reloadPage();
+    } catch (error) {
+      console.debug(
+        'Sincronizarea live WhatsApp este temporar indisponibilă:',
+        error
+      );
+    } finally {
+      requestRunning = false;
+    }
+  };
+
+  const resumePendingRefresh = () => {
+    if (
+      refreshPending &&
+      !userIsEditing()
+    ) {
+      window.location.reload();
+    }
+  };
+
+  composer?.addEventListener(
+    'blur',
+    resumePendingRefresh
+  );
+
+  notes?.addEventListener(
+    'blur',
+    resumePendingRefresh
+  );
+
+  composer?.addEventListener('input', () => {
+    if (
+      refreshPending &&
+      !composer.value.trim() &&
+      document.activeElement !== composer
+    ) {
+      resumePendingRefresh();
+    }
+  });
+
+  document.addEventListener(
+    'visibilitychange',
+    () => {
+      if (
+        document.visibilityState === 'visible'
+      ) {
+        checkLiveState();
+      }
+    }
+  );
+
+  window.addEventListener(
+    'focus',
+    checkLiveState
+  );
+
+  const liveTimer = window.setInterval(
+    checkLiveState,
+    2000
+  );
+
+  window.setTimeout(
+    checkLiveState,
+    500
+  );
+
+  window.addEventListener(
+    'beforeunload',
+    () => {
+      window.clearInterval(liveTimer);
+    }
+  );
+});
