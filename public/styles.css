@@ -9763,3 +9763,137 @@ button.whatsapp-crm-list-chip:hover {
     grid-template-columns: 1fr;
   }
 }
+/* WHATSAPP_AVATAR_LAYOUT_FIX_V1_BEGIN */
+
+/*
+ * Avatarurile trebuie izolate de dimensiunea intrinsecă
+ * a imaginilor WhatsApp.
+ */
+body:has(.whatsapp-shell) .whatsapp-avatar {
+  position: relative;
+  display: grid;
+  flex: 0 0 43px !important;
+  width: 43px !important;
+  min-width: 43px !important;
+  max-width: 43px !important;
+  height: 43px !important;
+  min-height: 43px !important;
+  max-height: 43px !important;
+  box-sizing: border-box;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 50%;
+  isolation: isolate;
+}
+
+body:has(.whatsapp-shell)
+.whatsapp-chat-profile-avatar {
+  position: relative;
+  display: grid;
+  flex: 0 0 52px !important;
+  width: 52px !important;
+  min-width: 52px !important;
+  max-width: 52px !important;
+  height: 52px !important;
+  min-height: 52px !important;
+  max-height: 52px !important;
+  box-sizing: border-box;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 50%;
+  isolation: isolate;
+}
+
+/*
+ * Poza este scoasă din calculul dimensiunii flex.
+ * Astfel nu mai poate lărgi containerul.
+ */
+body:has(.whatsapp-shell) .whatsapp-avatar img,
+body:has(.whatsapp-shell)
+.whatsapp-chat-profile-avatar img {
+  position: absolute !important;
+  inset: 0 !important;
+  display: block !important;
+  width: 100% !important;
+  min-width: 0 !important;
+  max-width: 100% !important;
+  height: 100% !important;
+  min-height: 0 !important;
+  max-height: 100% !important;
+  margin: 0 !important;
+  border: 0 !important;
+  border-radius: inherit !important;
+  object-fit: cover !important;
+  object-position: center !important;
+}
+
+body:has(.whatsapp-shell) .whatsapp-avatar span,
+body:has(.whatsapp-shell)
+.whatsapp-chat-profile-avatar span {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  width: auto;
+  height: auto;
+  place-items: center;
+}
+
+body:has(.whatsapp-shell)
+.whatsapp-conversation-item {
+  align-items: flex-start;
+  min-width: 0;
+  overflow: hidden;
+}
+
+body:has(.whatsapp-shell)
+.whatsapp-conversation-summary {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+}
+
+body:has(.whatsapp-shell)
+.whatsapp-conversation-summary p,
+body:has(.whatsapp-shell)
+.whatsapp-conversation-topline strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (min-width: 900px) {
+  body:has(.whatsapp-shell)
+  .whatsapp-chat-header-main {
+    flex-direction: row !important;
+    align-items: center !important;
+    flex-wrap: nowrap;
+  }
+
+  body:has(.whatsapp-shell)
+  .whatsapp-chat-title-block {
+    flex: 0 1 auto;
+    min-width: 170px;
+  }
+
+  body:has(.whatsapp-shell)
+  .whatsapp-client-notes--inline {
+    flex: 1 1 340px;
+    min-width: 220px;
+    max-width: 560px;
+  }
+}
+
+@media (max-width: 760px) {
+  body:has(.whatsapp-shell)
+  .whatsapp-chat-profile-avatar {
+    flex-basis: 44px !important;
+    width: 44px !important;
+    min-width: 44px !important;
+    max-width: 44px !important;
+    height: 44px !important;
+    min-height: 44px !important;
+    max-height: 44px !important;
+    align-self: flex-start;
+  }
+}
+
+/* WHATSAPP_AVATAR_LAYOUT_FIX_V1_END */
