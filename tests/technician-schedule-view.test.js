@@ -40,7 +40,6 @@ test('randarea listei păstrează toate acțiunile și modalul de trimitere', as
         ],
         cost_deplasare: '100.00',
         garantie_luni: 6,
-        conditii_comerciale: 'Diagnostic inclus',
         observatii: 'Sună înainte',
         phoneHref: 'tel:0712345678',
         mapsUrl: 'https://www.google.com/maps/search/?api=1&query=x',
@@ -76,18 +75,23 @@ test('randarea listei păstrează toate acțiunile și modalul de trimitere', as
     'Google Maps',
     'Waze',
     'Reparat',
-    'Nu a răspuns',
-    'Nu s-a putut repara',
+    'Nu răspunde',
+    'Nereparat',
     'Amână programarea',
     'Șterge programarea',
     'Editează programarea',
-    'Observații tehnician'
+    'Observație opțională',
+    'Navigație',
+    'Rezultat'
   ]) {
     assert.match(html, new RegExp(text));
   }
   assert.match(html, /data-schedule-modal/);
   assert.match(html, /data-confirm=/);
-  assert.match(html, /name="tip" value="reparatie"/);
+  assert.match(
+    html,
+    /name="tip"\s+value="reparatie"/
+  );
 });
 
 test('formularul randat include interval opțional și editor extensibil de prețuri', async () => {
@@ -107,7 +111,6 @@ test('formularul randat include interval opțional și editor extensibil de pre�
         defect_reclamat: '',
         cost_deplasare: '',
         garantie_luni: '6',
-        conditii_comerciale: '',
         data_programare: '2026-07-27',
         fara_interval: true,
         ora_programare: '',

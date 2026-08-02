@@ -172,17 +172,23 @@
           </div>
         </header>
 
-        <div class="appointment-grid">
-          <section class="appointment-section">
+
+        <div class="appointment-driver-summary">
+          <section class="appointment-driver-block appointment-driver-client">
             <small>Client</small>
             <strong>
               <%= String(row.nume || '').trim() || 'Client fără nume' %>
             </strong>
-            <a href="<%= row.phoneHref %>"><%= row.telefon %></a>
-            <span><%= row.adresa %>, <%= row.oras %></span>
+            <a
+              class="appointment-driver-phone"
+              href="<%= row.phoneHref %>"
+            ><%= row.telefon %></a>
+            <span class="appointment-driver-address">
+              <%= row.adresa %>, <%= row.oras %>
+            </span>
           </section>
 
-          <section class="appointment-section">
+          <section class="appointment-driver-block">
             <small>Echipament</small>
             <strong>
               <%= [row.marca, row.model].filter(Boolean).join(' ') %>
@@ -190,9 +196,10 @@
             <span><%= row.defect_reclamat %></span>
           </section>
 
-          <section class="appointment-section appointment-commercial">
-            <small>Comercial</small>
-            <ul class="appointment-price-list">
+          <section class="appointment-driver-block appointment-driver-commercial">
+            <small>Preț și garanție</small>
+
+            <div class="appointment-driver-prices">
               <%
                 const displayPrices = row.preturi.length
                   ? row.preturi
@@ -200,93 +207,144 @@
                       valoare: row.pret_reparatie,
                       descriere: null
                     }];
+
                 displayPrices.forEach(price => {
               %>
-                <li>
+                <span>
                   <strong>
                     <%= Number(price.valoare).toLocaleString('ro-RO', {
                       maximumFractionDigits: 2
                     }) %> lei
                   </strong>
+
                   <% if (price.descriere) { %>
-                    <span>— <%= price.descriere %></span>
+                    <small><%= price.descriere %></small>
                   <% } %>
-                </li>
+                </span>
               <% }) %>
-            </ul>
-            <% if (row.cost_deplasare !== null && Number(row.cost_deplasare) > 0) { %>
+            </div>
+
+            <% if (
+              row.cost_deplasare !== null &&
+              Number(row.cost_deplasare) > 0
+            ) { %>
               <span>
                 Deplasare:
-                <strong><%= Number(row.cost_deplasare).toLocaleString('ro-RO', {
-                  maximumFractionDigits: 2
-                }) %> lei</strong>
+                <strong>
+                  <%= Number(row.cost_deplasare).toLocaleString('ro-RO', {
+                    maximumFractionDigits: 2
+                  }) %> lei
+                </strong>
               </span>
             <% } %>
-            <span>Garanție: <%= row.garantie_luni %> luni</span>
+
+            <span>
+              Garanție:
+              <strong><%= row.garantie_luni %> luni</strong>
+            </span>
           </section>
         </div>
 
         <% if (row.observatii) { %>
-          <div class="appointment-existing-notes">
-            <small>Observații</small>
+          <div class="appointment-existing-notes appointment-existing-notes-compact">
+            <small>Observații existente</small>
             <p><%= row.observatii %></p>
           </div>
         <% } %>
 
-        <div class="appointment-actions appointment-contact-actions">
-          <span class="appointment-action-label">Acțiuni rapide</span>
-          <a class="button primary" href="<%= row.phoneHref %>">
+        <div class="appointment-driver-actions">
+          <a
+            class="button primary appointment-call-button"
+            href="<%= row.phoneHref %>"
+          >
             Sună
           </a>
-          <a
-            class="button ghost"
-            href="<%= row.mapsUrl %>"
-            target="_blank"
-            rel="noopener noreferrer"
-          >Google Maps</a>
-          <a
-            class="button ghost"
-            href="<%= row.wazeUrl %>"
-            target="_blank"
-            rel="noopener noreferrer"
-          >Waze</a>
-        </div>
 
-        <form
-          class="appointment-result-form"
-          method="post"
-          action="/tehnician/programari/<%= row.id %>/status"
-        >
-          <input type="hidden" name="tip" value="<%= selectedType %>">
-          <label for="notes-<%= row.id %>">Observații tehnician</label>
-          <textarea
-            id="notes-<%= row.id %>"
-            name="observatii"
-            rows="2"
-            placeholder="Observații despre vizită"
-          ></textarea>
-          <div class="appointment-result-actions">
-            <span class="appointment-action-label">Rezultat vizită</span>
-            <button
-              class="button success"
-              type="submit"
-              name="status"
-              value="reparat"
-            >Reparat</button>
-            <button
-              class="button ghost"
-              type="submit"
-              name="status"
-              value="nu_a_raspuns"
-            >Nu a răspuns</button>
-            <button
-              class="button danger"
-              type="submit"
-              name="status"
-              value="nu_s_a_putut_repara"
-            >Nu s-a putut repara</button>
-          </div>
-        </form>
+          <details class="appointment-action-menu">
+            <summary class="button ghost">
+              Navigație
+            </summary>
+
+            <div class="appointment-action-popover appointment-navigation-options">
+              <a
+                class="appointment-menu-option"
+                href="<%= row.wazeUrl %>"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Deschide în Waze
+              </a>
+
+              <a
+                class="appointment-menu-option"
+                href="<%= row.mapsUrl %>"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Deschide în Google Maps
+              </a>
+            </div>
+          </details>
+
+          <details class="appointment-action-menu appointment-result-menu">
+            <summary class="button ghost">
+              Rezultat
+            </summary>
+
+            <div class="appointment-action-popover appointment-result-popover">
+              <form
+                class="appointment-compact-result-form"
+                method="post"
+                action="/tehnician/programari/<%= row.id %>/status"
+              >
+                <input
+                  type="hidden"
+                  name="tip"
+                  value="<%= selectedType %>"
+                >
+
+                <label for="notes-<%= row.id %>">
+                  Observație opțională
+                  <textarea
+                    id="notes-<%= row.id %>"
+                    name="observatii"
+                    rows="2"
+                    placeholder="Detalii despre vizită"
+                  ></textarea>
+                </label>
+
+                <div class="appointment-result-menu-actions">
+                  <button
+                    class="button success"
+                    type="submit"
+                    name="status"
+                    value="reparat"
+                  >
+                    Reparat
+                  </button>
+
+                  <button
+                    class="button ghost"
+                    type="submit"
+                    name="status"
+                    value="nu_a_raspuns"
+                  >
+                    Nu răspunde
+                  </button>
+
+                  <button
+                    class="button danger"
+                    type="submit"
+                    name="status"
+                    value="nu_s_a_putut_repara"
+                  >
+                    Nereparat
+                  </button>
+                </div>
+              </form>
+            </div>
+          </details>
+        </div>
 
         <details class="appointment-more">
           <summary>Mai multe acțiuni</summary>
