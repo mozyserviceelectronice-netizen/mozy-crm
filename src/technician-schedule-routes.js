@@ -29,6 +29,119 @@ import {
   validateForm
 } from './technician-schedule-domain.js';
 
+function positiveInteger(value) {
+  const number = Number(value);
+
+  return Number.isSafeInteger(number) && number > 0
+    ? number
+    : null;
+}
+
+function appointmentEndTime(startTime) {
+  const value = String(startTime || '').slice(0, 5);
+
+  if (!/^\\d{2}:\\d{2}$/.test(value)) {
+    return '';
+  }
+
+  const [hours, minutes] = value
+    .split(':')
+    .map(Number);
+
+  if (
+    !Number.isInteger(hours) ||
+    !Number.isInteger(minutes) ||
+    hours < 0 ||
+    hours > 23 ||
+    minutes < 0 ||
+    minutes > 59
+  ) {
+    return '';
+  }
+
+  const totalMinutes =
+    ((hours * 60) + minutes + 60) % (24 * 60);
+
+  return [
+    String(Math.floor(totalMinutes / 60)).padStart(2, '0'),
+    String(totalMinutes % 60).padStart(2, '0')
+  ].join(':');
+}
+
+function draftObservations(draft) {
+  const parts = [];
+
+  if (draft.observatii) {
+    parts.push(String(draft.observatii).trim());
+  }
+
+  parts.push(
+    `Date propuse de AI din conversația WhatsApp. ` +
+    `Verifică toate câmpurile înainte de salvare.`
+  );
+
+  if (draft.incredere !== null && draft.incredere !== undefined) {
+    const confidence = Number(draft.incredere);
+
+    if (Number.isFinite(confidence)) {
+      parts.push(
+        `Încredere AI: ${Math.round(confidence * 100)}%.`
+      );
+    }
+  }
+
+  return parts.filter(Boolean).join('\n');
+}
+
+async function whatsappAppointmentDraft(draftId) {
+  if (!draftId) {
+    return null;
+  }
+
+  const result = await query(`
+    SELECT
+      p.id,
+      p.data_programare,
+      p.ora_programare,
+      p.adresa,
+      p.defect_reclamat,
+      p.marca,
+      p.model,
+      p.diagonala,
+      p.observatii,
+      p.status,
+      p.incredere,
+      wc.telefon,
+      COALESCE(
+        NULLIF(BTRIM(wc.nume), ''),
+        NULLIF(BTRIM(c.nume), '')
+      ) AS nume,
+      c.adresa AS adresa_client
+    FROM whatsapp.programari p
+    JOIN whatsapp.contacte wc
+      ON wc.id = p.contact_id
+    LEFT JOIN crm.clienti c
+      ON c.telefon = wc.telefon
+    WHERE p.id = $1
+      AND p.status <> 'anulata'
+      AND p.programare_tehnician_id IS NULL
+      AND COALESCE(
+        (
+          p.rezultat_ai #>>
+          '{control,propune_programare}'
+        )::boolean,
+        (
+          p.rezultat_ai ->
+          'propune_programare'
+        )::boolean,
+        false
+      ) = TRUE
+    LIMIT 1
+  `, [draftId]);
+
+  return result.rows[0] || null;
+}
+
 const appointmentSelect = `
   SELECT
     p.*,
@@ -829,16 +942,56 @@ export function registerTechnicianScheduleRoutes(
     async (req, res, next) => {
       try {
         const requestedDate = text(req.query.data);
+        const whatsappDraftId = positiveInteger(
+          req.query.whatsapp_draft
+        );
+
+        const draft = whatsappDraftId
+          ? await whatsappAppointmentDraft(whatsappDraftId)
+          : null;
+
+        const draftDate = draft?.data_programare
+          ? String(draft.data_programare).slice(0, 10)
+          : '';
+
+        const draftStartTime = draft?.ora_programare
+          ? String(draft.ora_programare).slice(0, 5)
+          : '';
+
+        const draftAddress =
+          text(draft?.adresa) ||
+          text(draft?.adresa_client);
+
         const values = formValues({}, {
+          whatsapp_draft_id: whatsappDraftId
+            ? String(whatsappDraftId)
+            : '',
+          telefon: text(draft?.telefon),
+          nume: text(draft?.nume),
           tehnician_user_id: req.user.id,
-          tip_deplasare: 'reparatie',
+          tip_deplasare: 'ridicare',
+          marca: text(draft?.marca),
+          model: text(draft?.model),
+          defect_reclamat: text(draft?.defect_reclamat),
           oras: 'București',
-          data_programare: validDate(requestedDate)
-            ? requestedDate
-            : bucharestDate(),
+          adresa: draftAddress,
+          data_programare: validDate(draftDate)
+            ? draftDate
+            : (
+              validDate(requestedDate)
+                ? requestedDate
+                : bucharestDate()
+            ),
+          fara_interval: !draftStartTime,
+          ora_programare: draftStartTime,
+          ora_sfarsit: appointmentEndTime(draftStartTime),
+          observatii: draft
+            ? draftObservations(draft)
+            : '',
           garantie_luni: '6',
           priceRows: [{ amount: '', description: '' }]
         });
+
         return renderAppointmentForm({
           req,
           res,
@@ -939,6 +1092,35 @@ export function registerTechnicianScheduleRoutes(
             appointment.rows[0].id,
             validation.prices
           );
+
+          const whatsappDraftId = positiveInteger(
+            values.whatsapp_draft_id
+          );
+
+          if (whatsappDraftId) {
+            const linkedDraft = await client.query(`
+              UPDATE whatsapp.programari
+              SET
+                programare_tehnician_id = $2,
+                consumata_la = CURRENT_TIMESTAMP,
+                updated_at = CURRENT_TIMESTAMP
+              WHERE id = $1
+                AND programare_tehnician_id IS NULL
+                AND status <> 'anulata'
+              RETURNING id
+            `, [
+              whatsappDraftId,
+              appointment.rows[0].id
+            ]);
+
+            if (!linkedDraft.rowCount) {
+              throw new Error(
+                'Draftul WhatsApp nu există, este anulat ' +
+                'sau a fost deja folosit.'
+              );
+            }
+          }
+
           await client.query('COMMIT');
         } catch (error) {
           await client.query('ROLLBACK');

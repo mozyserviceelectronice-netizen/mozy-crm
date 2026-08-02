@@ -1,5 +1,8 @@
 import 'dotenv/config';
 import express from 'express';
+import {
+  receiveWhatsAppMedia
+} from './whatsapp-media.js';
 import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -26,6 +29,7 @@ import { registerReceptionLabelRoutes } from './reception-label-routes.js';
 import { registerTestModeRoutes } from './test-mode-routes.js';
 import { registerTechnicalSheetRoutes } from './technical-sheet-routes.js';
 import { registerServiceDocumentRoutes } from './service-document-routes.js';
+import { registerWhatsAppCrmRoutes } from './whatsapp-crm-routes.js';
 import {
   defectLibraryDashboardData,
   registerDefectLibraryRoutes
@@ -87,6 +91,15 @@ app.use(express.urlencoded({
   extended: false,
   limit: '700kb'
 }));
+app.post(
+  '/internal/whatsapp-media',
+  express.json({
+    limit: '70mb',
+    type: 'application/json'
+  }),
+  receiveWhatsAppMedia
+);
+
 app.use(cookieParser());
 app.use(nonceMiddleware);
 app.use(contentSecurityPolicy());
@@ -1161,48 +1174,7 @@ app.get('/clienti', requireAuth, (_req, res) => {
   res.redirect(302, '/');
 });
 
-app.get(
-  '/conversatii',
-  requireAuth,
-  async (_req, res, next) => {
-    try {
-      const result = await query(`
-        SELECT *
-        FROM (
-          SELECT DISTINCT ON (cv.client_id)
-                 cv.id,
-                 cv.client_id,
-                 cv.directie,
-                 cv.tip,
-                 cv.mesaj,
-                 cv.necesita_raspuns,
-                 cv.created_at,
-                 c.nume,
-                 c.telefon,
-                 c.client_dificil
-          FROM crm.conversatii cv
-          JOIN crm.clienti c
-            ON c.id = cv.client_id
-          ORDER BY
-            cv.client_id,
-            cv.created_at DESC,
-            cv.id DESC
-        ) latest
-        ORDER BY
-          latest.created_at DESC,
-          latest.id DESC
-        LIMIT 200
-      `);
-
-      res.render('conversatii', {
-        rows: result.rows,
-        active: 'conversatii'
-      });
-    } catch (error) {
-      next(error);
-    }
-  }
-);
+registerWhatsAppCrmRoutes(app, requireAuth);
 
 app.get('/receptie', requireAuth, async (req, res, next) => {
   try {

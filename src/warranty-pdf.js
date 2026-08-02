@@ -113,12 +113,23 @@ function fieldTable(doc, rows) {
   }
 }
 
+function certificateSource(certificate) {
+  if (certificate.fisa_id) {
+    return ['Fi\u0219\u0103 service', `#${certificate.fisa_id}`];
+  }
+  if (certificate.receptie_id) {
+    return ['Recep\u021bie atelier', `#${certificate.receptie_id}`];
+  }
+  return ['Surs\u0103', 'Emitere independent\u0103'];
+}
+
 function metaTable(doc, certificate) {
   const x = 58;
   const y = doc.y;
   const widths = [91, 147, 78, 163];
+  const [sourceLabel, sourceValue] = certificateSource(certificate);
   const rows = [
-    ['Num\u0103r certificat', value(certificate.numar_certificat), 'Fi\u0219\u0103 service', `#${value(certificate.fisa_id)}`],
+    ['Num\u0103r certificat', value(certificate.numar_certificat), sourceLabel, sourceValue],
     ['Data emiterii', dateRo(certificate.data_emiterii), 'Operator', value(certificate.operator_username)]
   ];
   const rowHeight = 30;
@@ -227,7 +238,7 @@ export function generateWarrantyPdf(certificate, outputPath) {
       ['Tip echipament', certificate.tip_echipament],
       ['Marc\u0103', certificate.marca],
       ['Model', certificate.model],
-      ['Serie / cod produs', [certificate.serie, certificate.cod_produs].filter(Boolean).join(' / ')]
+      ['Serie', certificate.serie]
     ]);
 
     sectionTitle(doc, 3, 'Lucrarea efectuat\u0103');

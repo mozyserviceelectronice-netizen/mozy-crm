@@ -1241,3 +1241,234 @@
     }
   });
 })();
+
+/* WhatsApp notes saved state — safe version */
+document.addEventListener('DOMContentLoaded', () => {
+  const form = document.querySelector(
+    '.whatsapp-client-notes'
+  );
+
+  if (!form) {
+    return;
+  }
+
+  const textarea = form.querySelector(
+    'textarea[name="notite_whatsapp"]'
+  );
+
+  const button = form.querySelector(
+    '.whatsapp-client-notes-save'
+  );
+
+  if (!textarea || !button) {
+    return;
+  }
+
+  const originalValue = textarea.value.trim();
+
+  const setButtonState = () => {
+    const currentValue = textarea.value.trim();
+    const changed = currentValue !== originalValue;
+
+    button.classList.remove(
+      'is-saved',
+      'is-saving'
+    );
+
+    if (changed) {
+      button.disabled = false;
+      button.textContent = 'Salvează';
+      return;
+    }
+
+    if (originalValue.length > 0) {
+      button.disabled = true;
+      button.classList.add('is-saved');
+      button.textContent = '✓ Salvat';
+      return;
+    }
+
+    button.disabled = currentValue.length === 0;
+    button.textContent = 'Salvează';
+  };
+
+  textarea.addEventListener(
+    'input',
+    setButtonState
+  );
+
+  form.addEventListener('submit', () => {
+    button.disabled = true;
+    button.classList.remove('is-saved');
+    button.classList.add('is-saving');
+    button.textContent = 'Se salvează…';
+  });
+
+  setButtonState();
+
+  const status = form.querySelector(
+    '.whatsapp-client-notes-status'
+  );
+
+  if (status) {
+    window.setTimeout(() => {
+      status.classList.add('is-hidden');
+    }, 2800);
+  }
+});
+
+/* WhatsApp notes autosave on blur */
+document.addEventListener('DOMContentLoaded', () => {
+  const form = document.querySelector(
+    '.whatsapp-client-notes'
+  );
+
+  if (!form) {
+    return;
+  }
+
+  const textarea = form.querySelector(
+    'textarea[name="notite_whatsapp"]'
+  );
+
+  const oldButton = form.querySelector(
+    '.whatsapp-client-notes-save'
+  );
+
+  const oldStatus = form.querySelector(
+    '.whatsapp-client-notes-status'
+  );
+
+  if (!textarea) {
+    return;
+  }
+
+  if (oldButton) {
+    oldButton.hidden = true;
+    oldButton.setAttribute('aria-hidden', 'true');
+    oldButton.tabIndex = -1;
+  }
+
+  if (oldStatus) {
+    oldStatus.hidden = true;
+  }
+
+  let originalValue = textarea.value.trim();
+  let saving = false;
+
+  const status = document.createElement('span');
+  status.className = 'whatsapp-notes-autosave-status';
+  status.setAttribute('aria-live', 'polite');
+  form.appendChild(status);
+
+  const csrfToken = document
+    .querySelector('meta[name="csrf-token"]')
+    ?.getAttribute('content') || '';
+
+  const showStatus = (message, state = '') => {
+    status.textContent = message;
+    status.className =
+      `whatsapp-notes-autosave-status ${state}`.trim();
+  };
+
+  const saveNotes = async () => {
+    const currentValue = textarea.value.trim();
+
+    if (
+      saving ||
+      currentValue === originalValue
+    ) {
+      return;
+    }
+
+    saving = true;
+    textarea.classList.add('is-saving');
+    showStatus('Se salvează…', 'is-saving');
+
+    const data = new URLSearchParams();
+
+    data.set(
+      'notite_whatsapp',
+      textarea.value
+    );
+
+    const qInput = form.querySelector(
+      'input[name="q"]'
+    );
+
+    if (qInput?.value) {
+      data.set('q', qInput.value);
+    }
+
+    try {
+      const response = await fetch(form.action, {
+        method: 'POST',
+        credentials: 'same-origin',
+        redirect: 'follow',
+        headers: {
+          'Content-Type':
+            'application/x-www-form-urlencoded;charset=UTF-8',
+          ...(csrfToken
+            ? {
+                'X-CSRF-Token': csrfToken
+              }
+            : {})
+        },
+        body: data.toString()
+      });
+
+      if (!response.ok) {
+        throw new Error(
+          `Salvarea a eșuat: HTTP ${response.status}`
+        );
+      }
+
+      originalValue = currentValue;
+
+      textarea.classList.remove('is-saving');
+      textarea.classList.add('is-saved');
+
+      showStatus('✓ Salvat', 'is-saved');
+
+      window.setTimeout(() => {
+        status.classList.add('is-faded');
+      }, 1800);
+    } catch (error) {
+      textarea.classList.remove(
+        'is-saving',
+        'is-saved'
+      );
+
+      showStatus(
+        'Nu s-a putut salva',
+        'is-error'
+      );
+
+      console.error(
+        'WhatsApp notes autosave:',
+        error
+      );
+    } finally {
+      saving = false;
+    }
+  };
+
+  textarea.addEventListener('input', () => {
+    textarea.classList.remove('is-saved');
+
+    if (
+      textarea.value.trim() !== originalValue
+    ) {
+      showStatus('Modificări nesalvate', 'is-dirty');
+    } else {
+      showStatus('');
+    }
+  });
+
+  textarea.addEventListener('blur', saveNotes);
+
+  form.addEventListener('submit', event => {
+    event.preventDefault();
+    saveNotes();
+  });
+});

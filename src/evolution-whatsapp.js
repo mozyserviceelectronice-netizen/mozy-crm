@@ -19,7 +19,22 @@ function apiKey() {
 }
 
 export function normalizeWhatsAppNumber(input) {
-  let digits = String(input || '').replace(/\D/g, '');
+  const original = String(input || '')
+    .trim()
+    .toLowerCase();
+
+  if (/^120363\d{10,}@g\.us$/.test(original)) {
+    return original;
+  }
+
+  let digits = original.replace(/\D/g, '');
+
+  if (
+    digits.startsWith('120363') &&
+    digits.length > 15
+  ) {
+    return `${digits}@g.us`;
+  }
 
   if (digits.startsWith('00')) {
     digits = digits.slice(2);
@@ -131,4 +146,133 @@ export async function sendWhatsAppPdf({
       caption: String(caption || '').slice(0, 1024)
     }
   );
+}
+
+export async function sendWhatsAppMedia({
+  number,
+  bytes,
+  mimetype,
+  mediaType,
+  fileName,
+  caption
+}) {
+  const buffer = Buffer.isBuffer(bytes)
+    ? bytes
+    : Buffer.from(bytes || '');
+
+  const allowedMediaTypes = new Set([
+    'image',
+    'video',
+    'audio',
+    'document'
+  ]);
+
+  const type = String(mediaType || '').trim();
+  const mime = String(mimetype || '')
+    .split(';')[0]
+    .trim()
+    .toLowerCase();
+
+  if (!allowedMediaTypes.has(type)) {
+    throw new Error('Tipul media WhatsApp nu este valid.');
+  }
+
+  if (!mime || mime.length > 150) {
+    throw new Error('Tipul MIME al fișierului nu este valid.');
+  }
+
+  if (!buffer.length || buffer.length > 50 * 1024 * 1024) {
+    throw new Error(
+      'Fișierul trebuie să aibă cel mult 50 MB.'
+    );
+  }
+
+  return evolutionRequest(
+    `/message/sendMedia/${encodeURIComponent(evolutionInstance)}`,
+    {
+      number: normalizeWhatsAppNumber(number),
+      mediatype: type,
+      mimetype: mime,
+      media: buffer.toString('base64'),
+      fileName: String(fileName || 'atasament')
+        .slice(0, 180),
+      caption: String(caption || '').slice(0, 1024)
+    }
+  );
+}
+
+
+export async function getWhatsAppGroupInfo(groupJid) {
+  const jid = String(groupJid || '')
+    .trim()
+    .toLowerCase();
+
+  if (!/^120363\d{10,}@g\.us$/.test(jid)) {
+    throw new Error('JID-ul grupului WhatsApp nu este valid.');
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(
+    () => controller.abort(),
+    15_000
+  );
+
+  try {
+    const endpoint = [
+      evolutionBaseUrl,
+      '/group/findGroupInfos/',
+      encodeURIComponent(evolutionInstance),
+      '?groupJid=',
+      encodeURIComponent(jid)
+    ].join('');
+
+    const response = await fetch(endpoint, {
+      method: 'GET',
+      headers: {
+        apikey: apiKey(),
+        Accept: 'application/json'
+      },
+      signal: controller.signal
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `Evolution API a răspuns HTTP ${response.status} pentru grup.`
+      );
+    }
+
+    const payload = await response.json();
+
+    const group =
+      payload?.group ??
+      payload?.data ??
+      payload;
+
+    const subject = String(
+      group?.subject ??
+      group?.name ??
+      ''
+    ).trim();
+
+    if (!subject) {
+      throw new Error(
+        'Evolution API nu a returnat numele grupului.'
+      );
+    }
+
+    return {
+      jid,
+      subject: subject.slice(0, 255)
+    };
+  } catch (error) {
+    if (error?.name === 'AbortError') {
+      throw new Error(
+        'Evolution API nu a răspuns la interogarea grupului.'
+      );
+    }
+
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
 }

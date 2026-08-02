@@ -1,0 +1,132 @@
+<%- include('partials/header', { title: 'Garan\u021bii \u2014 Mozy CRM', active }) %>
+
+<div class="page-heading">
+  <div>
+    <span class="eyebrow">Certificate de garan&#539;ie</span>
+    <h1>Istoric garan&#539;ii</h1>
+    <p>Certificate emise independent, din fi&#537;e service sau din recep&#539;ie.</p>
+  </div>
+  <div class="page-actions warranty-heading-actions">
+    <a class="button primary" href="/garantii/noua">Emite garan&#539;ie</a>
+  </div>
+</div>
+
+<% if (created) { %>
+  <div class="save-toast">
+    Certificatul a fost generat. &#206;l po&#539;i desc&#259;rca sau trimite pe WhatsApp.
+  </div>
+<% } %>
+
+<% if (trimitere === 'trimisa') { %>
+  <div class="save-toast">Certificatul a fost trimis pe WhatsApp.</div>
+<% } else if (trimitere === 'deja_trimisa') { %>
+  <div class="alert">Certificatul a fost trimis recent. Retrimiterea a fost blocat&#259; temporar.</div>
+<% } else if (trimitere === 'eroare') { %>
+  <div class="alert error">Trimiterea pe WhatsApp a e&#537;uat. Po&#539;i &#238;ncerca din nou.</div>
+<% } %>
+
+<section class="panel warranty-search-panel">
+  <form method="get" action="/garantii" class="warranty-search-form">
+    <label>
+      Caut&#259; certificat
+      <input
+        type="search"
+        name="q"
+        value="<%= search %>"
+        placeholder="Num&#259;r, client, telefon, marc&#259;, model sau serie"
+      >
+    </label>
+    <button class="button primary" type="submit">Caut&#259;</button>
+    <% if (search) { %>
+      <a class="button ghost" href="/garantii">Reseteaz&#259;</a>
+    <% } %>
+  </form>
+</section>
+
+<% if (!certificates.length) { %>
+  <section class="panel empty-state">
+    <h2>Nu exist&#259; rezultate</h2>
+    <p>Nu a fost g&#259;sit niciun certificat pentru criteriul selectat.</p>
+  </section>
+<% } else { %>
+  <section class="warranty-history-list">
+    <% certificates.forEach(certificate => { %>
+      <article class="panel warranty-history-card <%= Number(created) === Number(certificate.id) ? 'is-created' : '' %>">
+        <div class="warranty-history-main">
+          <div>
+            <div class="warranty-history-title">
+              <strong><%= certificate.numar_certificat %></strong>
+              <% if (certificate.este_test) { %>
+                <span class="status-badge">TEST</span>
+              <% } %>
+              <span class="status-badge <%= certificate.status === 'trimisa' ? 'success' : '' %>">
+                <%= certificate.status.replaceAll('_', ' ') %>
+              </span>
+            </div>
+
+            <p>
+              <strong><%= certificate.nume_client || 'Client fără nume' %></strong>
+              &middot; <%= certificate.telefon %>
+            </p>
+
+            <small>
+              <%= [certificate.tip_echipament, certificate.marca, certificate.model, certificate.serie].filter(Boolean).join(' · ') || 'Echipament nespecificat' %>
+            </small>
+          </div>
+
+          <div class="warranty-history-meta">
+            <small>
+              Emis:
+              <strong><%= new Intl.DateTimeFormat('ro-RO').format(new Date(certificate.data_emiterii)) %></strong>
+            </small>
+            <small>
+              Expir&#259;:
+              <strong><%= new Intl.DateTimeFormat('ro-RO').format(new Date(certificate.data_expirarii)) %></strong>
+            </small>
+            <small>
+              Surs&#259;:
+              <strong>
+                <%= certificate.receptie_id
+                  ? `Recepție #${certificate.receptie_id}`
+                  : certificate.fisa_id
+                    ? `Fișă #${certificate.fisa_id}`
+                    : 'Independentă'
+                %>
+              </strong>
+            </small>
+          </div>
+        </div>
+
+        <div class="warranty-history-actions">
+          <a class="button ghost" href="/garantii/<%= certificate.id %>/pdf">
+            Descarc&#259; PDF
+          </a>
+          <form method="post" action="/garantii/<%= certificate.id %>/trimite">
+            <button class="button primary" type="submit">
+              <%= certificate.trimisa_la ? 'Retrimite pe WhatsApp' : 'Trimite pe WhatsApp' %>
+            </button>
+          </form>
+        </div>
+
+        <% if (certificate.trimisa_la) { %>
+          <small class="warranty-sent-info">
+            Trimis la
+            <%= new Intl.DateTimeFormat('ro-RO', {
+              dateStyle: 'medium',
+              timeStyle: 'short',
+              timeZone: 'Europe/Bucharest'
+            }).format(new Date(certificate.trimisa_la)) %>
+          </small>
+        <% } %>
+
+        <% if (certificate.eroare_trimitere) { %>
+          <small class="form-error">
+            Ultima trimitere a e&#537;uat.
+          </small>
+        <% } %>
+      </article>
+    <% }) %>
+  </section>
+<% } %>
+
+<%- include('partials/footer') %>

@@ -44,6 +44,11 @@
     action="<%= formAction %>"
     data-appointment-form
   >
+    <input
+      type="hidden"
+      name="whatsapp_draft_id"
+      value="<%= values.whatsapp_draft_id || '' %>"
+    >
     <fieldset class="appointment-form-section">
       <legend>Client și deplasare</legend>
       <div class="appointment-form-grid">

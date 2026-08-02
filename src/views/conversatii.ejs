@@ -1,25 +1,69 @@
+
+<% if (typeof readAll !== 'undefined' && readAll) { %>
+  <div class="notice success">
+    Toate mesajele WhatsApp au fost marcate ca citite.
+  </div>
+<% } %>
+
 <%
+const client = currentClient || null;
+
 const numeInvalide = [
-  'voc\u00ea',
+  'você',
   'voce',
   'mozy service electronice'
 ];
 
-function numeAfisat(row) {
-  const nume = String(row.nume || '').trim();
+function esteGrup(row) {
+  if (!row) {
+    return false;
+  }
 
-  if (!nume || numeInvalide.includes(nume.toLowerCase())) {
-    return 'Client f\u0103r\u0103 nume';
+  const digits = String(row.telefon || '')
+    .replace(/\D/g, '');
+
+  return (
+    row.tip_conversatie === 'grup' ||
+    String(row.whatsapp_jid || '')
+      .toLowerCase()
+      .endsWith('@g.us') ||
+    (
+      digits.startsWith('120363') &&
+      digits.length > 15
+    )
+  );
+}
+
+function numeAfisat(row) {
+  const nume = String(row?.nume || '').trim();
+
+  if (
+    !nume ||
+    numeInvalide.includes(nume.toLowerCase())
+  ) {
+    return 'Client fără nume';
   }
 
   return nume;
 }
 
-function formatMessage(row) {
-  const mesaj = String(row.mesaj || '').trim();
+function previewMesaj(row) {
+  const mesaj = String(row?.mesaj || '').trim();
 
-  if (row.tip !== 'image') {
-    return mesaj || 'Mesaj f\u0103r\u0103 con\u021binut';
+  if (row?.tip === 'image') {
+    return mesaj
+      ? '📷 Imagine analizată'
+      : '📷 Imagine primită';
+  }
+
+  return mesaj || 'Mesaj fără conținut';
+}
+
+function mesajAfisat(row) {
+  const mesaj = String(row?.mesaj || '').trim();
+
+  if (row?.tip !== 'image') {
+    return mesaj || 'Mesaj fără conținut';
   }
 
   try {
@@ -27,7 +71,7 @@ function formatMessage(row) {
     const parts = [];
 
     if (vision.marca) {
-      parts.push(`Marc\u0103: ${vision.marca}`);
+      parts.push(`Marcă: ${vision.marca}`);
     }
 
     if (vision.model) {
@@ -43,7 +87,7 @@ function formatMessage(row) {
     }
 
     if (vision.diagonala) {
-      parts.push(`Diagonal\u0103: ${vision.diagonala}\u2033`);
+      parts.push(`Diagonală: ${vision.diagonala}″`);
     }
 
     if (vision.tip_tv) {
@@ -51,7 +95,7 @@ function formatMessage(row) {
     }
 
     if (vision.cod_placa) {
-      parts.push(`Cod plac\u0103: ${vision.cod_placa}`);
+      parts.push(`Cod placă: ${vision.cod_placa}`);
     }
 
     if (vision.alte_coduri) {
@@ -59,80 +103,627 @@ function formatMessage(row) {
     }
 
     if (vision.observatii) {
-      parts.push(`Observa\u021bii: ${vision.observatii}`);
+      parts.push(`Observații: ${vision.observatii}`);
     }
 
     return parts.length
-      ? parts.join(' \u00b7 ')
-      : 'Imagine primit\u0103 \u0219i analizat\u0103';
+      ? parts.join('\n')
+      : 'Imagine primită și analizată';
   } catch {
-    return mesaj || 'Imagine primit\u0103';
+    return mesaj || 'Imagine primită';
   }
+}
+
+function dataMesaj(value) {
+  return new Intl.DateTimeFormat('ro-RO', {
+    dateStyle: 'short',
+    timeStyle: 'short'
+  }).format(new Date(value));
 }
 %>
 
 <%- include('partials/header', {
-  title: `Conversa\u021bii \u2014 Mozy CRM`,
+  title: 'WhatsApp — Mozy CRM',
   active
 }) %>
 
-<div class="page-heading">
-  <div>
-    <span class="eyebrow">WhatsApp</span>
-    <h1>Conversa&#539;ii recente</h1>
-  </div>
-</div>
+<section class="whatsapp-page-heading whatsapp-page-heading--minimal">
+  <div class="whatsapp-signature-hero">
+    <div
+      class="whatsapp-signature-orb"
+      aria-hidden="true"
+    ></div>
 
-<section class="panel conversation-list single-column">
-  <% if (!rows.length) { %>
-    <p class="empty">
-      Nu exist&#259; conversa&#539;ii.
-    </p>
-  <% } %>
+    <div class="whatsapp-signature-content">
+      <span class="whatsapp-signature-kicker">
+        Mozy CRM · WhatsApp Workspace
+      </span>
 
-  <% rows.forEach(row => { %>
-    <article
-      class="conversation-card <%= row.necesita_raspuns ? 'needs-reply' : '' %>"
-    >
-      <div class="conversation-header">
-        <div>
-          <strong><%= numeAfisat(row) %></strong>
-
-          <small>
-            <%= row.telefon || 'Telefon indisponibil' %>
-            &middot;
-            <%= row.directie === 'incoming' ? 'primit' : 'trimis' %>
-            &middot;
-            <%= new Intl.DateTimeFormat('ro-RO', {
-              dateStyle: 'short',
-              timeStyle: 'short'
-            }).format(new Date(row.created_at)) %>
-          </small>
-        </div>
-
-        <div class="conversation-flags">
-          <% if (row.client_dificil) { %>
-            <span class="flag difficult">
-              Client dificil
-            </span>
-          <% } %>
-
-          <% if (
-            row.directie === 'incoming' &&
-            row.necesita_raspuns
-          ) { %>
-            <span class="badge alert">
-              Necesit&#259; r&#259;spuns
-            </span>
-          <% } %>
-        </div>
+      <div class="whatsapp-signature-title">
+        Proudly created &amp; coded by
+        <span>Andrei Mozara</span>
       </div>
 
-      <p class="conversation-message">
-        <%= row.tip === 'image' ? '\uD83D\uDCF7 ' : '' %><%= formatMessage(row).slice(0, 500) %>
+      <p class="whatsapp-signature-subtitle">
+        Citește istoricul și răspunde direct din CRM.
       </p>
-    </article>
-  <% }) %>
+    </div>
+  </div>
 </section>
 
+<% if (sent) { %>
+  <div class="notice success">
+    Mesajul a fost trimis pe WhatsApp.
+  </div>
+<% } %>
+
+<% if (errorCode === 'mesaj_invalid') { %>
+  <div class="notice error">
+    Mesajul trebuie să conțină între 1 și 4096 de caractere.
+  </div>
+<% } else if (errorCode === 'telefon_lipsa') { %>
+  <div class="notice error">
+    Clientul nu are un număr de telefon valid.
+  </div>
+<% } else if (errorCode === 'trimitere') { %>
+  <div class="notice error">
+    Mesajul nu a putut fi trimis prin Evolution API.
+  </div>
+<% } %>
+
+<section class="whatsapp-shell">
+  <aside class="whatsapp-conversation-sidebar">
+    <form
+      class="whatsapp-search"
+      method="get"
+      action="/conversatii"
+    >
+      <label for="whatsapp-search-input">
+        Caută conversații
+      </label>
+
+      <div class="whatsapp-search-row">
+        <input
+          id="whatsapp-search-input"
+          name="q"
+          type="search"
+          value="<%= q %>"
+          placeholder="Nume sau telefon"
+          autocomplete="off"
+        >
+
+        <button
+          class="button secondary"
+          type="submit"
+        >
+          Caută
+        </button>
+      </div>
+    </form>
+
+    <div class="whatsapp-conversation-list">
+      <% if (!rows.length) { %>
+        <p class="empty whatsapp-empty-list">
+          Nu există conversații pentru această căutare.
+        </p>
+      <% } %>
+
+      <% rows.forEach(row => { %>
+        <a
+          class="whatsapp-conversation-item
+            <%= Number(selectedClientId) === Number(row.client_id) ? 'active' : '' %>
+            <%= row.necesita_raspuns ? 'needs-reply' : '' %>"
+          href="/conversatii?client=<%= row.client_id %><%= q ? `&q=${encodeURIComponent(q)}` : '' %>"
+        >
+          <div class="whatsapp-avatar">
+            <%= numeAfisat(row).slice(0, 1).toUpperCase() %>
+          </div>
+
+          <div class="whatsapp-conversation-summary">
+            <div class="whatsapp-conversation-topline">
+              <strong><%= numeAfisat(row) %></strong>
+              <% if (esteGrup(row)) { %>
+                <span class="whatsapp-group-badge">
+                  GRUP
+                </span>
+              <% } %>
+
+              <time datetime="<%= row.created_at %>">
+                <%= dataMesaj(row.created_at) %>
+              </time>
+            </div>
+
+            <div class="whatsapp-conversation-phone">
+              <%= esteGrup(row)
+                ? 'Grup WhatsApp'
+                : (row.telefon || 'Telefon indisponibil') %>
+            </div>
+
+            <p>
+              <%= row.directie === 'outgoing' ? 'Tu: ' : '' %><%= previewMesaj(row).slice(0, 90) %>
+            </p>
+
+            <div class="whatsapp-conversation-badges">
+              <% if (Number(row.necitite || 0) > 0) { %>
+                <span class="whatsapp-unread-count">
+                  <%= row.necitite %>
+                </span>
+              <% } %>
+
+              <% if (row.necesita_raspuns) { %>
+                <span class="badge alert">
+                  Necesită răspuns
+                </span>
+              <% } %>
+
+              <% if (row.client_dificil) { %>
+                <span class="flag difficult">
+                  Client dificil
+                </span>
+              <% } %>
+            </div>
+          </div>
+        </a>
+      <% }) %>
+    </div>
+  </aside>
+
+  <section class="whatsapp-chat-panel">
+    <% if (!client) { %>
+      <div class="whatsapp-no-chat">
+        <div class="whatsapp-no-chat-icon">💬</div>
+        <h2>Selectează o conversație</h2>
+        <p>
+          Alege un client din lista din stânga.
+        </p>
+      </div>
+    <% } else { %>
+      <header class="whatsapp-chat-header">
+          <div class="whatsapp-chat-header-main">
+            <div class="whatsapp-chat-title-block">
+              <h2>
+                <%= numeAfisat(client) %>
+                <% if (esteGrup(client)) { %>
+                  <span class="whatsapp-group-badge">
+                    GRUP
+                  </span>
+                <% } %>
+              </h2>
+
+              <p>
+                <%= esteGrup(client)
+                  ? 'Conversație de grup WhatsApp'
+                  : (client.telefon || 'Telefon indisponibil') %>
+                <% if (client.email) { %>
+                  &middot; <%= client.email %>
+                <% } %>
+              </p>
+            </div>
+
+            <form
+              class="whatsapp-client-notes whatsapp-client-notes--inline"
+              method="post"
+              action="/conversatii/<%= client.id %>/notite"
+            >
+              <input
+                type="hidden"
+                name="_csrf"
+                value="<%= csrfToken %>"
+              >
+
+              <input
+                type="hidden"
+                name="q"
+                value="<%= q %>"
+              >
+
+              <div class="whatsapp-inline-note-shell">
+                <div class="whatsapp-inline-note-label">
+                  <span class="whatsapp-inline-note-dot"></span>
+                  <span>
+                    <%= esteGrup(client)
+                      ? 'Notiță grup'
+                      : 'Notiță client' %>
+                  </span>
+                </div>
+
+                <textarea
+                  name="notite_whatsapp"
+                  rows="1"
+                  placeholder="<%= esteGrup(client)
+                    ? 'Scrie aici detalii despre grup...'
+                    : 'Scrie aici detalii despre client...' %>"
+                ><%= client.notite_whatsapp || '' %></textarea>
+
+                <span
+                  class="whatsapp-notes-autosave-status"
+                  aria-live="polite"
+                ></span>
+              </div>
+            </form>
+          </div>
+
+          <div class="whatsapp-chat-actions">
+            <form
+              class="whatsapp-mark-all-read-form"
+              method="post"
+              action="/conversatii/marcheaza-tot-citit"
+            >
+              <button
+                class="button secondary"
+                type="submit"
+              >
+                <span class="whatsapp-mark-read-icon" aria-hidden="true">
+                  ✓
+                </span>
+                <span>Marchează tot ca citit</span>
+              </button>
+            </form>
+
+            <% if (!esteGrup(client) && client.whatsapp_programare_draft_id) { %>
+              <a
+                class="button primary"
+                href="/tehnician/programari/noua?whatsapp_draft=<%= client.whatsapp_programare_draft_id %>"
+              >
+                Generează programare
+              </a>
+            <% } %>
+
+            <% if (!esteGrup(client) && client.fisa_activa_id) { %>
+              <a
+                class="button secondary"
+                href="/fise/<%= client.fisa_activa_id %>"
+              >
+                Vezi fișa existentă
+              </a>
+            <% } %>
+
+            <% if (client.client_dificil) { %>
+              <span class="flag difficult">
+                Client dificil
+              </span>
+            <% } %>
+          </div>
+        </header>
+
+      <div
+        class="whatsapp-message-history"
+        id="whatsapp-message-history"
+      >
+        <% if (!messages.length) { %>
+          <p class="empty">
+            Nu există mesaje salvate pentru acest client.
+          </p>
+        <% } %>
+
+        <% messages.forEach(row => { %>
+          <article
+            class="whatsapp-message
+              <%= row.directie === 'outgoing' ? 'outgoing' : 'incoming' %>"
+          >
+            <div class="whatsapp-message-bubble">
+              <% if (row.tip === 'image') { %>
+                <div class="whatsapp-message-type">
+                  📷 Imagine
+                </div>
+              <% } %>
+
+              <p><%= mesajAfisat(row) %></p>
+
+              <% if (row.media_url) { %>
+                <% const mediaHref =
+                  `/conversatii/media/${row.id}`; %>
+
+                <% if (row.tip === 'image') { %>
+                  <a
+                    class="whatsapp-media-preview-link"
+                    href="<%= mediaHref %>"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <img
+                      class="whatsapp-media-image"
+                      src="<%= mediaHref %>"
+                      alt="Imagine primită prin WhatsApp"
+                      loading="lazy"
+                    >
+                  </a>
+                <% } else if (row.tip === 'audio') { %>
+                  <audio
+                    class="whatsapp-media-audio"
+                    controls
+                    preload="metadata"
+                    src="<%= mediaHref %>"
+                  >
+                    Browserul nu poate reda mesajul audio.
+                  </audio>
+                <% } else if (row.tip === 'video') { %>
+                  <video
+                    class="whatsapp-media-video"
+                    controls
+                    preload="metadata"
+                    src="<%= mediaHref %>"
+                  >
+                    Browserul nu poate reda videoclipul.
+                  </video>
+                <% } else { %>
+                  <a
+                    class="whatsapp-media-link"
+                    href="<%= mediaHref %>"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    📄 Deschide documentul
+                  </a>
+                <% } %>
+              <% } %>
+
+              <time datetime="<%= row.created_at %>">
+                <%= dataMesaj(row.created_at) %>
+                &middot;
+                <%= row.directie === 'outgoing' ? 'trimis' : 'primit' %>
+              </time>
+            </div>
+          </article>
+        <% }) %>
+      </div>
+
+      <form
+        class="whatsapp-composer"
+        method="post"
+        action="/conversatii/<%= client.id %>/trimite"
+      >
+        <input
+          type="hidden"
+          name="_csrf"
+          value="<%= csrfToken %>"
+        >
+
+        <input
+          type="hidden"
+          name="q"
+          value="<%= q %>"
+        >
+
+        <label for="whatsapp-message-input">
+          Mesaj către <%= numeAfisat(client) %>
+        </label>
+
+        <div class="whatsapp-attachment-controls">
+          <input
+            id="whatsapp-media-input"
+            class="whatsapp-media-input"
+            type="file"
+            accept="image/jpeg,image/png,image/webp,image/gif,audio/ogg,audio/mpeg,audio/mp4,audio/wav,video/mp4,video/3gpp,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain,application/zip"
+          >
+
+          <button
+            id="whatsapp-media-button"
+            class="button secondary whatsapp-attach-button"
+            type="button"
+          >
+            📎 Atașează
+          </button>
+
+          <span
+            id="whatsapp-media-status"
+            class="whatsapp-media-status"
+            aria-live="polite"
+          ></span>
+        </div>
+
+        <div class="whatsapp-composer-row">
+          <textarea
+            id="whatsapp-message-input"
+            name="mesaj"
+            rows="3"
+            maxlength="4096"
+            required
+            placeholder="Scrie mesajul..."
+          ></textarea>
+
+          <button
+            class="button primary whatsapp-send-button"
+            type="submit"
+          >
+            Trimite
+          </button>
+        </div>
+
+        <small>
+          Mesajul este trimis manual prin Evolution API.
+          AI-ul nu răspunde automat.
+        </small>
+      </form>
+    <% } %>
+  </section>
+</section>
+
+<script nonce="<%= cspNonce %>">
+  const messageHistory = document.getElementById(
+    'whatsapp-message-history'
+  );
+
+  if (messageHistory) {
+    messageHistory.scrollTop =
+      messageHistory.scrollHeight;
+  }
+</script>
+
 <%- include('partials/footer') %>
+
+<script nonce="<%= cspNonce %>">
+(() => {
+  const input = document.getElementById(
+    'whatsapp-media-input'
+  );
+
+  const button = document.getElementById(
+    'whatsapp-media-button'
+  );
+
+  const status = document.getElementById(
+    'whatsapp-media-status'
+  );
+
+  const messageInput = document.getElementById(
+    'whatsapp-message-input'
+  );
+
+  const form = messageInput?.closest('form');
+
+  const sendButton = form?.querySelector(
+    '.whatsapp-send-button'
+  );
+
+  if (
+    !input ||
+    !button ||
+    !status ||
+    !form
+  ) {
+    return;
+  }
+
+  let sending = false;
+
+  button.addEventListener('click', () => {
+    if (!sending) {
+      input.click();
+    }
+  });
+
+  input.addEventListener('change', () => {
+    const file = input.files?.[0];
+
+    if (!file) {
+      status.textContent = '';
+      return;
+    }
+
+    const maximum = file.type.startsWith('video/')
+      ? 50 * 1024 * 1024
+      : file.type.startsWith('image/')
+        ? 15 * 1024 * 1024
+        : 25 * 1024 * 1024;
+
+    if (file.size > maximum) {
+      status.textContent =
+        'Fișierul este prea mare.';
+
+      input.value = '';
+      return;
+    }
+
+    status.textContent =
+      `${file.name} selectat. Apasă Trimite.`;
+  });
+
+  form.addEventListener('submit', async event => {
+    const file = input.files?.[0];
+
+    /*
+     * Fără atașament, formularul trimite mesajul text
+     * în modul normal.
+     */
+    if (!file) {
+      return;
+    }
+
+    event.preventDefault();
+
+    if (sending) {
+      return;
+    }
+
+    const maximum = file.type.startsWith('video/')
+      ? 50 * 1024 * 1024
+      : file.type.startsWith('image/')
+        ? 15 * 1024 * 1024
+        : 25 * 1024 * 1024;
+
+    if (file.size > maximum) {
+      status.textContent =
+        'Fișierul este prea mare.';
+
+      return;
+    }
+
+    const csrfToken = document
+      .querySelector('meta[name="csrf-token"]')
+      ?.getAttribute('content') || '';
+
+    const caption = String(
+      messageInput?.value || ''
+    ).trim();
+
+    sending = true;
+    button.disabled = true;
+    input.disabled = true;
+
+    if (sendButton) {
+      sendButton.disabled = true;
+    }
+
+    status.textContent =
+      `Se trimite ${file.name}...`;
+
+    try {
+      const response = await fetch(
+        '/conversatii/<%= client.id %>/trimite-media?q=<%= encodeURIComponent(q || "") %>',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type':
+              'application/octet-stream',
+            'X-CSRF-Token':
+              csrfToken,
+            'X-Mozy-Filename':
+              encodeURIComponent(file.name),
+            'X-Mozy-Mimetype':
+              file.type,
+            'X-Mozy-Caption':
+              encodeURIComponent(caption)
+          },
+          body: file
+        }
+      );
+
+      const payload = await response.json()
+        .catch(() => ({}));
+
+      if (!response.ok || !payload.ok) {
+        throw new Error(
+          payload.error ||
+          'Fișierul nu a putut fi trimis.'
+        );
+      }
+
+      status.textContent = 'Fișier trimis.';
+
+      input.value = '';
+
+      if (messageInput) {
+        messageInput.value = '';
+      }
+
+      window.location.href =
+        payload.redirect ||
+        '/conversatii?client=<%= client.id %>';
+    } catch (error) {
+      status.textContent =
+        error?.message ||
+        'Fișierul nu a putut fi trimis.';
+
+      sending = false;
+      button.disabled = false;
+      input.disabled = false;
+
+      if (sendButton) {
+        sendButton.disabled = false;
+      }
+    }
+  });
+})();
+</script>
+

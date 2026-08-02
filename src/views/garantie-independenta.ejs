@@ -1,0 +1,125 @@
+<%- include('partials/header', { title: 'Emitere garan\u021bie \u2014 Mozy CRM', active }) %>
+
+<div class="page-heading">
+  <div>
+    <span class="eyebrow">Modul independent</span>
+    <h1>Emite garan&#539;ie</h1>
+    <p>Certificatul se emite f&#259;r&#259; fi&#537;&#259; service sau recep&#539;ie asociat&#259;.</p>
+  </div>
+  <div class="page-actions warranty-heading-actions">
+    <a class="button ghost" href="/garantii">Istoric garan&#539;ii</a>
+  </div>
+</div>
+
+<% if (error) { %>
+  <div class="alert error"><%= error %></div>
+<% } %>
+
+<form method="post" action="/garantii/noua" class="warranty-form">
+  <section class="panel">
+    <h2>1. Date client</h2>
+    <div class="form-grid">
+      <label>Nume client
+        <input
+          name="nume_client"
+          value="<%= values.nume_client ?? '' %>"
+          autocomplete="name"
+        >
+      </label>
+
+      <label>Telefon
+        <input
+          name="telefon"
+          required
+          value="<%= values.telefon ?? '' %>"
+          autocomplete="tel"
+          inputmode="tel"
+        >
+      </label>
+
+      <label class="full">Adres&#259; / localitate
+        <input
+          name="adresa_client"
+          value="<%= values.adresa_client ?? '' %>"
+          autocomplete="street-address"
+        >
+      </label>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>2. Echipament</h2>
+    <div class="form-grid">
+      <label>Tip echipament
+        <input
+          name="tip_echipament"
+          value="<%= values.tip_echipament ?? 'Televizor' %>"
+        >
+      </label>
+
+      <label>Marc&#259;
+        <input name="marca" value="<%= values.marca ?? '' %>">
+      </label>
+
+      <label>Model
+        <input name="model" value="<%= values.model ?? '' %>">
+      </label>
+
+      <label>Serie
+        <input name="serie" value="<%= values.serie ?? '' %>">
+      </label>
+    </div>
+  </section>
+
+  <section class="panel">
+    <h2>3. Lucrarea efectuat&#259;</h2>
+    <div class="form-grid">
+      <label class="full">Defect reclamat
+        <textarea name="defect_reclamat" rows="3"><%= values.defect_reclamat ?? '' %></textarea>
+      </label>
+
+      <label class="full">Interven&#539;ie efectuat&#259;
+        <textarea name="interventie_efectuata" rows="4" required><%= values.interventie_efectuata ?? '' %></textarea>
+      </label>
+
+      <label class="full">Piese / componente
+        <textarea name="piese_componente" rows="3"><%= values.piese_componente ?? '' %></textarea>
+      </label>
+
+      <label>Pre&#539; lucrare (lei)
+        <input
+          name="pret_lucrare"
+          type="number"
+          min="0"
+          step="0.01"
+          value="<%= values.pret_lucrare ?? '' %>"
+        >
+      </label>
+
+      <label>Durata garan&#539;iei
+        <select name="durata_luni" required>
+          <% durations.forEach(duration => { %>
+            <option
+              value="<%= duration %>"
+              <%= Number(values.durata_luni) === duration ? 'selected' : '' %>
+            >
+              <%= duration %> luni
+            </option>
+          <% }) %>
+        </select>
+      </label>
+    </div>
+  </section>
+
+  <section class="panel warranty-actions">
+    <p>
+      Num&#259;rul certificatului, data emiterii, data &#238;nceperii
+      &#537;i data expir&#259;rii se completeaz&#259; automat.
+    </p>
+    <button class="button primary" type="submit">
+      Emite certificatul
+    </button>
+  </section>
+</form>
+
+<%- include('partials/footer') %>

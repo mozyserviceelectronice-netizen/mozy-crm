@@ -139,6 +139,9 @@ export function formValues(body = {}, defaults = {}) {
     'fara_interval'
   );
   return {
+    whatsapp_draft_id: text(
+      body.whatsapp_draft_id ?? defaults.whatsapp_draft_id
+    ),
     telefon: text(body.telefon ?? defaults.telefon),
     nume: text(body.nume ?? defaults.nume),
     tehnician_user_id: text(

@@ -6,6 +6,7 @@ import { sendWhatsAppPdf } from './evolution-whatsapp.js';
 
 const DURATIONS = [1, 3, 6, 9, 12];
 const PDF_DIRECTORY = '/app/data/garantii';
+// GARANTII INDEPENDENTE v1.0.0
 
 function integer(value) {
   const parsed = Number(value);
@@ -43,8 +44,7 @@ async function loadServiceFile(id) {
       t.tip_tv,
       t.marca,
       t.model,
-      t.serie,
-      t.cod_produs
+      t.serie
     FROM crm.fise_service f
     JOIN crm.clienti c ON c.id = f.client_id
     LEFT JOIN crm.televizoare t ON t.id = f.televizor_id
@@ -107,7 +107,6 @@ function warrantyFormData(body) {
     marca: optional(body.marca),
     model: optional(body.model),
     serie: optional(body.serie),
-    cod_produs: optional(body.cod_produs),
     defect_reclamat: optional(body.defect_reclamat),
     interventie_efectuata: required(body.interventie_efectuata),
     piese_componente: optional(body.piese_componente),
@@ -160,6 +159,25 @@ async function generateCertificate(certificate) {
     ]);
     throw pdfError;
   }
+}
+
+
+function certificateBackUrl(certificate, result) {
+  if (certificate.receptie_id) {
+    return `/receptie/${certificate.receptie_id}?garantie=${result}`;
+  }
+  if (certificate.fisa_id) {
+    return `/fise/${certificate.fisa_id}/garantie?trimitere=${result}`;
+  }
+  return `/garantii?created=${certificate.id}&trimitere=${result}`;
+}
+
+function independentFormValues(body = {}) {
+  const form = warrantyFormData(body);
+  return {
+    ...form,
+    durata_luni: integer(body.durata_luni) || 6
+  };
 }
 
 export function registerWarrantyRoutes(app, requireAuth) {
@@ -223,7 +241,7 @@ export function registerWarrantyRoutes(app, requireAuth) {
           fisa_id, client_id, televizor_id,
           durata_luni, data_expirarii, operator_username,
           nume_client, telefon, adresa_client,
-          tip_echipament, marca, model, serie, cod_produs,
+          tip_echipament, marca, model, serie,
           defect_reclamat, interventie_efectuata,
           piese_componente, pret_lucrare,
           este_test, test_grup_id
@@ -234,9 +252,9 @@ export function registerWarrantyRoutes(app, requireAuth) {
           ((CURRENT_TIMESTAMP AT TIME ZONE 'Europe/Bucharest')::date + make_interval(months => $4::integer))::date,
           $5,
           $6, $7, $8,
-          $9, $10, $11, $12, $13,
-          $14, $15, $16, $17,
-          $18, $19::uuid
+          $9, $10, $11, $12,
+          $13, $14, $15, $16,
+          $17, $18::uuid
         )
         RETURNING *
       `, [
@@ -252,7 +270,6 @@ export function registerWarrantyRoutes(app, requireAuth) {
         form.marca,
         form.model,
         form.serie,
-        form.cod_produs,
         form.defect_reclamat,
         form.interventie_efectuata,
         form.piese_componente,
@@ -372,7 +389,6 @@ export function registerWarrantyRoutes(app, requireAuth) {
             marca,
             model,
             serie,
-            cod_produs,
             defect_reclamat,
             interventie_efectuata,
             piese_componente,
@@ -386,9 +402,9 @@ export function registerWarrantyRoutes(app, requireAuth) {
               (CURRENT_TIMESTAMP AT TIME ZONE 'Europe/Bucharest')::date +
               make_interval(months => $3::integer)
             )::date,
-            $4, $5, $6, $7, $8, $9, $10, $11, $12,
-            $13, $14, $15, $16,
-            $17, $18::uuid
+            $4, $5, $6, $7, $8, $9, $10, $11,
+            $12, $13, $14, $15,
+            $16, $17::uuid
           )
           RETURNING *
         `, [
@@ -403,7 +419,6 @@ export function registerWarrantyRoutes(app, requireAuth) {
           form.marca,
           form.model,
           form.serie,
-          form.cod_produs,
           form.defect_reclamat,
           form.interventie_efectuata,
           form.piese_componente,
@@ -437,6 +452,207 @@ export function registerWarrantyRoutes(app, requireAuth) {
       }
     }
   );
+
+
+  app.get('/garantii', requireAuth, async (req, res, next) => {
+    try {
+      const search = required(req.query.q).slice(0, 120);
+      const result = await query(`
+        SELECT
+          id,
+          fisa_id,
+          receptie_id,
+          numar_certificat,
+          data_emiterii,
+          data_expirarii,
+          durata_luni,
+          nume_client,
+          telefon,
+          tip_echipament,
+          marca,
+          model,
+          serie,
+          status,
+          trimisa_la,
+          eroare_trimitere,
+          este_test
+        FROM crm.certificate_garantie
+        WHERE (
+          $1 = ''
+          OR numar_certificat ILIKE '%' || $1 || '%'
+          OR COALESCE(nume_client, '') ILIKE '%' || $1 || '%'
+          OR telefon ILIKE '%' || $1 || '%'
+          OR COALESCE(marca, '') ILIKE '%' || $1 || '%'
+          OR COALESCE(model, '') ILIKE '%' || $1 || '%'
+          OR COALESCE(serie, '') ILIKE '%' || $1 || '%'
+        )
+        ORDER BY id DESC
+        LIMIT 150
+      `, [search]);
+
+      res.render('garantii-lista', {
+        active: 'garantii',
+        certificates: result.rows,
+        search,
+        created: integer(req.query.created),
+        trimitere: required(req.query.trimitere)
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.get('/garantii/noua', requireAuth, (req, res) => {
+    res.render('garantie-independenta', {
+      active: 'garantii',
+      durations: DURATIONS,
+      values: independentFormValues(),
+      error: null
+    });
+  });
+
+  app.post('/garantii/noua', requireAuth, async (req, res, next) => {
+    try {
+      const duration = integer(req.body.durata_luni);
+      const values = independentFormValues(req.body);
+      const validationError = validateWarranty(values, duration);
+      const phoneDigits = values.telefon.replace(/\D/g, '');
+
+      if (validationError || phoneDigits.length < 9) {
+        return res.status(400).render('garantie-independenta', {
+          active: 'garantii',
+          durations: DURATIONS,
+          values,
+          error: validationError || 'Numărul de telefon nu este valid.'
+        });
+      }
+
+      const inserted = await query(`
+        WITH matched_client AS (
+          SELECT id
+          FROM crm.clienti
+          WHERE RIGHT(
+            REGEXP_REPLACE(telefon, '[^0-9]', '', 'g'),
+            9
+          ) = RIGHT($1, 9)
+          ORDER BY id
+          LIMIT 1
+        ),
+        updated_client AS (
+          UPDATE crm.clienti AS c
+          SET
+            nume = COALESCE($2, c.nume),
+            adresa = COALESCE($3, c.adresa),
+            updated_at = CURRENT_TIMESTAMP
+          WHERE c.id = (SELECT id FROM matched_client)
+          RETURNING c.id
+        ),
+        created_client AS (
+          INSERT INTO crm.clienti (
+            telefon,
+            nume,
+            adresa,
+            updated_at
+          )
+          SELECT
+            $4,
+            $2,
+            $3,
+            CURRENT_TIMESTAMP
+          WHERE NOT EXISTS (SELECT 1 FROM updated_client)
+          ON CONFLICT (telefon)
+          DO UPDATE SET
+            nume = COALESCE(EXCLUDED.nume, crm.clienti.nume),
+            adresa = COALESCE(EXCLUDED.adresa, crm.clienti.adresa),
+            updated_at = CURRENT_TIMESTAMP
+          RETURNING id
+        ),
+        selected_client AS (
+          SELECT id FROM updated_client
+          UNION ALL
+          SELECT id FROM created_client
+          LIMIT 1
+        )
+        INSERT INTO crm.certificate_garantie (
+          client_id,
+          durata_luni,
+          data_expirarii,
+          operator_username,
+          nume_client,
+          telefon,
+          adresa_client,
+          tip_echipament,
+          marca,
+          model,
+          serie,
+          defect_reclamat,
+          interventie_efectuata,
+          piese_componente,
+          pret_lucrare,
+          este_test
+        )
+        SELECT
+          selected_client.id,
+          $5,
+          (
+            (CURRENT_TIMESTAMP AT TIME ZONE 'Europe/Bucharest')::date +
+            make_interval(months => $5::integer)
+          )::date,
+          $6,
+          $2,
+          $4,
+          $3,
+          $7,
+          $8,
+          $9,
+          $10,
+          $11,
+          $12,
+          $13,
+          $14,
+          FALSE
+        FROM selected_client
+        RETURNING *
+      `, [
+        phoneDigits,
+        values.nume_client,
+        values.adresa_client,
+        values.telefon,
+        duration,
+        operatorName(req.user),
+        values.tip_echipament,
+        values.marca,
+        values.model,
+        values.serie,
+        values.defect_reclamat,
+        values.interventie_efectuata,
+        values.piese_componente,
+        values.pret_lucrare === null
+          ? null
+          : Number(values.pret_lucrare)
+      ]);
+
+      if (!inserted.rowCount) {
+        throw new Error('Clientul nu a putut fi creat sau identificat.');
+      }
+
+      const numbered = await query(`
+        UPDATE crm.certificate_garantie
+        SET
+          numar_certificat =
+            crm.urmatorul_numar_garantie(este_test),
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = $1
+        RETURNING *
+      `, [inserted.rows[0].id]);
+      const certificate = numbered.rows[0];
+
+      await generateCertificate(certificate);
+      res.redirect(`/garantii?created=${certificate.id}`);
+    } catch (error) {
+      next(error);
+    }
+  });
 
   app.post(
     '/garantii/:id/trimite',
@@ -474,10 +690,9 @@ export function registerWarrantyRoutes(app, requireAuth) {
           certificate.trimisa_la &&
           Date.now() - new Date(certificate.trimisa_la).getTime() < 60_000
         ) {
-          const backUrl = certificate.receptie_id
-            ? `/receptie/${certificate.receptie_id}?garantie=deja_trimisa`
-            : `/fise/${certificate.fisa_id}/garantie?trimitere=deja_trimisa`;
-          return res.redirect(backUrl);
+          return res.redirect(
+            certificateBackUrl(certificate, 'deja_trimisa')
+          );
         }
 
         try {
@@ -516,16 +731,14 @@ export function registerWarrantyRoutes(app, requireAuth) {
             String(sendError.message || sendError).slice(0, 1000)
           ]);
 
-          const backUrl = certificate.receptie_id
-            ? `/receptie/${certificate.receptie_id}?garantie=eroare`
-            : `/fise/${certificate.fisa_id}/garantie?trimitere=eroare`;
-          return res.redirect(backUrl);
+          return res.redirect(
+            certificateBackUrl(certificate, 'eroare')
+          );
         }
 
-        const backUrl = certificate.receptie_id
-          ? `/receptie/${certificate.receptie_id}?garantie=trimisa`
-          : `/fise/${certificate.fisa_id}/garantie?trimitere=trimisa`;
-        res.redirect(backUrl);
+        res.redirect(
+          certificateBackUrl(certificate, 'trimisa')
+        );
       } catch (error) {
         next(error);
       }
