@@ -22,6 +22,21 @@ export function normalizeWhatsAppLabelId(value) {
     .slice(0, 100);
 }
 
+export function normalizeCrmListId(value) {
+  const id = Number(value);
+
+  return Number.isSafeInteger(id) && id > 0
+    ? String(id)
+    : '';
+}
+
+export function normalizeCrmListName(value) {
+  return String(value || '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 120);
+}
+
 function escapeLike(value) {
   return String(value || '')
     .replace(/[\\%_]/g, '\\$&');
@@ -88,11 +103,13 @@ export function buildWhatsAppOrganizerUrl({
   q = '',
   scope = 'active',
   labelId = '',
+  listId = '',
   saved = false
 } = {}) {
   const params = new URLSearchParams();
   const normalizedScope = normalizeConversationScope(scope);
   const normalizedLabel = normalizeWhatsAppLabelId(labelId);
+  const normalizedList = normalizeCrmListId(listId);
   const search = String(q || '').trim().slice(0, 100);
   const id = Number(clientId);
 
@@ -108,6 +125,10 @@ export function buildWhatsAppOrganizerUrl({
 
   if (normalizedLabel) {
     params.set('label', normalizedLabel);
+  }
+
+  if (normalizedList) {
+    params.set('list', normalizedList);
   }
 
   if (saved) {
@@ -133,15 +154,40 @@ export async function listWhatsAppLabels() {
   return result.rows;
 }
 
+export async function listCrmWhatsAppLists() {
+  const result = await query(`
+    SELECT
+      list.id,
+      list.name,
+      list.position,
+      COUNT(member.client_id)::INTEGER AS member_count
+    FROM crm.whatsapp_crm_lists list
+    LEFT JOIN crm.whatsapp_crm_list_members member
+      ON member.list_id = list.id
+    GROUP BY
+      list.id,
+      list.name,
+      list.position
+    ORDER BY
+      list.position,
+      LOWER(list.name),
+      list.id
+  `);
+
+  return result.rows;
+}
+
 export async function listOrganizedConversations(
   q,
   scope,
-  labelId
+  labelId,
+  listId = ''
 ) {
   const search = String(q || '').trim().slice(0, 100);
   const pattern = `%${escapeLike(search)}%`;
   const normalizedScope = normalizeConversationScope(scope);
   const normalizedLabel = normalizeWhatsAppLabelId(labelId);
+  const normalizedList = normalizeCrmListId(listId);
 
   return query(`
     WITH latest AS (
@@ -212,7 +258,19 @@ export async function listOrganizedConversations(
         COALESCE(
           label_data.labels,
           '[]'::JSONB
-        ) AS whatsapp_labels
+        ) AS whatsapp_labels,
+        COALESCE(
+          crm_list_data.lists,
+          '[]'::JSONB
+        ) AS whatsapp_crm_lists,
+        CASE
+          WHEN profile.status = 'ok'
+            AND profile.file_path IS NOT NULL
+            THEN profile.file_path
+          ELSE NULL
+        END AS whatsapp_profile_photo_path,
+        profile.updated_at
+          AS whatsapp_profile_photo_updated_at
       FROM latest
       LEFT JOIN LATERAL (
         SELECT candidate.*
@@ -256,6 +314,25 @@ export async function listOrganizedConversations(
         WHERE association.remote_jid = state.remote_jid
       ) label_data
         ON TRUE
+      LEFT JOIN LATERAL (
+        SELECT JSONB_AGG(
+          JSONB_BUILD_OBJECT(
+            'id', list.id,
+            'name', list.name
+          )
+          ORDER BY
+            list.position,
+            LOWER(list.name),
+            list.id
+        ) AS lists
+        FROM crm.whatsapp_crm_list_members member
+        JOIN crm.whatsapp_crm_lists list
+          ON list.id = member.list_id
+        WHERE member.client_id = latest.client_id
+      ) crm_list_data
+        ON TRUE
+      LEFT JOIN crm.whatsapp_profile_photos profile
+        ON profile.client_id = latest.client_id
     )
     SELECT *
     FROM enriched
@@ -281,6 +358,17 @@ export async function listOrganizedConversations(
             AND filtered_label.label_id = $4
         )
       )
+      AND (
+        NULLIF($5, '') IS NULL
+        OR EXISTS (
+          SELECT 1
+          FROM crm.whatsapp_crm_list_members filtered_list
+          WHERE
+            filtered_list.client_id = enriched.client_id
+            AND filtered_list.list_id =
+              NULLIF($5, '')::BIGINT
+        )
+      )
     ORDER BY
       CASE
         WHEN necesita_raspuns THEN 0
@@ -293,7 +381,8 @@ export async function listOrganizedConversations(
     search,
     pattern,
     normalizedScope,
-    normalizedLabel
+    normalizedLabel,
+    normalizedList
   ]);
 }
 
@@ -339,7 +428,19 @@ export async function getWhatsAppOrganizerForClient(
       COALESCE(
         label_data.labels,
         '[]'::JSONB
-      ) AS whatsapp_labels
+      ) AS whatsapp_labels,
+      COALESCE(
+        crm_list_data.lists,
+        '[]'::JSONB
+      ) AS whatsapp_crm_lists,
+      CASE
+        WHEN profile.status = 'ok'
+          AND profile.file_path IS NOT NULL
+          THEN profile.file_path
+        ELSE NULL
+      END AS whatsapp_profile_photo_path,
+      profile.updated_at
+        AS whatsapp_profile_photo_updated_at
     FROM target
     LEFT JOIN LATERAL (
       SELECT candidate.*
@@ -381,13 +482,35 @@ export async function getWhatsAppOrganizerForClient(
       WHERE association.remote_jid = state.remote_jid
     ) label_data
       ON TRUE
+    LEFT JOIN LATERAL (
+      SELECT JSONB_AGG(
+        JSONB_BUILD_OBJECT(
+          'id', list.id,
+          'name', list.name
+        )
+        ORDER BY
+          list.position,
+          LOWER(list.name),
+          list.id
+      ) AS lists
+      FROM crm.whatsapp_crm_list_members member
+      JOIN crm.whatsapp_crm_lists list
+        ON list.id = member.list_id
+      WHERE member.client_id = target.id
+    ) crm_list_data
+      ON TRUE
+    LEFT JOIN crm.whatsapp_profile_photos profile
+      ON profile.client_id = target.id
   `, [clientId]);
 
   return result.rows[0] || {
     whatsapp_remote_jid: null,
     whatsapp_archived: false,
     whatsapp_archive_known: false,
-    whatsapp_labels: []
+    whatsapp_labels: [],
+    whatsapp_crm_lists: [],
+    whatsapp_profile_photo_path: null,
+    whatsapp_profile_photo_updated_at: null
   };
 }
 
@@ -679,6 +802,138 @@ export async function removeLocalConversationLabel(
     return {
       remoteJid: state.remote_jid,
       labelId: normalizedLabel
+    };
+  });
+}
+
+export async function createCrmWhatsAppList(name) {
+  const normalizedName = normalizeCrmListName(name);
+
+  if (!normalizedName) {
+    throw new Error('Numele listei este obligatoriu.');
+  }
+
+  return transaction(async database => {
+    const existing = await database.query(`
+      SELECT id, name
+      FROM crm.whatsapp_crm_lists
+      WHERE LOWER(BTRIM(name)) =
+        LOWER(BTRIM($1))
+      LIMIT 1
+    `, [normalizedName]);
+
+    if (existing.rowCount) {
+      return existing.rows[0];
+    }
+
+    const inserted = await database.query(`
+      INSERT INTO crm.whatsapp_crm_lists (
+        name,
+        position,
+        created_at,
+        updated_at
+      )
+      VALUES (
+        $1,
+        (
+          SELECT COALESCE(MAX(position), 0) + 10
+          FROM crm.whatsapp_crm_lists
+        ),
+        CURRENT_TIMESTAMP,
+        CURRENT_TIMESTAMP
+      )
+      RETURNING id, name
+    `, [normalizedName]);
+
+    await touchRevision(database);
+
+    return inserted.rows[0];
+  });
+}
+
+export async function addClientToCrmWhatsAppList(
+  clientId,
+  listId
+) {
+  const normalizedList = normalizeCrmListId(listId);
+
+  if (!normalizedList) {
+    throw new Error('Lista CRM nu este validă.');
+  }
+
+  return transaction(async database => {
+    const client = await database.query(`
+      SELECT id
+      FROM crm.clienti
+      WHERE id = $1
+    `, [clientId]);
+
+    if (!client.rowCount) {
+      throw new Error('Clientul nu a fost găsit.');
+    }
+
+    const list = await database.query(`
+      SELECT id
+      FROM crm.whatsapp_crm_lists
+      WHERE id = $1
+    `, [normalizedList]);
+
+    if (!list.rowCount) {
+      throw new Error('Lista CRM nu există.');
+    }
+
+    await database.query(`
+      INSERT INTO crm.whatsapp_crm_list_members (
+        list_id,
+        client_id,
+        created_at
+      )
+      VALUES (
+        $1,
+        $2,
+        CURRENT_TIMESTAMP
+      )
+      ON CONFLICT (list_id, client_id)
+      DO NOTHING
+    `, [
+      normalizedList,
+      clientId
+    ]);
+
+    await touchRevision(database);
+
+    return {
+      clientId,
+      listId: normalizedList
+    };
+  });
+}
+
+export async function removeClientFromCrmWhatsAppList(
+  clientId,
+  listId
+) {
+  const normalizedList = normalizeCrmListId(listId);
+
+  if (!normalizedList) {
+    throw new Error('Lista CRM nu este validă.');
+  }
+
+  return transaction(async database => {
+    await database.query(`
+      DELETE FROM crm.whatsapp_crm_list_members
+      WHERE list_id = $1
+        AND client_id = $2
+    `, [
+      normalizedList,
+      clientId
+    ]);
+
+    await touchRevision(database);
+
+    return {
+      clientId,
+      listId: normalizedList
     };
   });
 }

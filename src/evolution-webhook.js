@@ -2,6 +2,9 @@ import crypto from 'node:crypto';
 import express from 'express';
 
 import { query } from './db.js';
+import {
+  scheduleIncomingMediaCapture
+} from './whatsapp-assets.js';
 
 const forwardedEvents = new Set([
   'MESSAGES_UPSERT',
@@ -546,6 +549,12 @@ export function registerEvolutionWebhookRoute(app) {
 
         if (forwardedEvents.has(event)) {
           await forwardToN8n(req.body);
+        }
+
+        if (event === 'MESSAGES_UPSERT') {
+          scheduleIncomingMediaCapture(
+            req.body
+          );
         }
 
         return res.status(204).end();

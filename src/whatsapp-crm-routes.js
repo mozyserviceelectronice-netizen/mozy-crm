@@ -5,19 +5,29 @@ import path from 'node:path';
 
 import { query } from './db.js';
 import {
+  addClientToCrmWhatsAppList,
   addLocalConversationLabel,
   buildWhatsAppOrganizerUrl,
+  createCrmWhatsAppList,
   getWhatsAppOrganizerForClient,
+  listCrmWhatsAppLists,
   listOrganizedConversations,
   listWhatsAppLabels,
   normalizeConversationScope,
+  normalizeCrmListId,
   normalizeWhatsAppLabelId,
+  removeClientFromCrmWhatsAppList,
   removeLocalConversationLabel,
   setLocalConversationArchived,
   whatsappOrganizerState
 } from './whatsapp-organizer.js';
+import {
+  absoluteProfilePhotoPath,
+  scheduleProfilePhotoRefresh
+} from './whatsapp-assets.js';
 
 // WHATSAPP_ORGANIZER_V1
+// WHATSAPP_ASSETS_LISTS_V1
 import {
   absoluteWhatsAppMediaPath,
   whatsappMediaContentType,
@@ -405,7 +415,9 @@ async function clientMessages(clientId) {
       recent.message_id,
       recent.este_citit,
       recent.necesita_raspuns,
-      recent.created_at
+      recent.created_at,
+      recovery.status AS media_recovery_status,
+      recovery.last_error AS media_recovery_error
     FROM (
       SELECT
         id,
@@ -424,6 +436,8 @@ async function clientMessages(clientId) {
         id DESC
       LIMIT 500
     ) recent
+    LEFT JOIN crm.whatsapp_media_recovery recovery
+      ON recovery.conversation_id = recent.id
     ORDER BY
       recent.created_at ASC,
       recent.id ASC
@@ -529,7 +543,11 @@ export function registerWhatsAppCrmRoutes(
         const labelId = normalizeWhatsAppLabelId(
           req.query.label
         );
+        const listId = normalizeCrmListId(
+          req.query.list
+        );
 
+        scheduleProfilePhotoRefresh();
         await syncWhatsAppGroupNames();
 
         const requestedClientId = integerId(
@@ -540,15 +558,18 @@ export function registerWhatsAppCrmRoutes(
           listResult,
           liveStateResult,
           allLabels,
+          allCrmLists,
           organizerState
         ] = await Promise.all([
           listOrganizedConversations(
             q,
             scope,
-            labelId
+            labelId,
+            listId
           ),
           whatsappLiveState(),
           listWhatsAppLabels(),
+          listCrmWhatsAppLists(),
           whatsappOrganizerState()
         ]);
 
@@ -629,7 +650,9 @@ export function registerWhatsAppCrmRoutes(
           q,
           scope,
           labelId,
+          listId,
           allLabels,
+          allCrmLists,
           organizerSaved:
             req.query.organizer_saved === '1',
           sent: req.query.sent === '1',
@@ -738,6 +761,9 @@ export function registerWhatsAppCrmRoutes(
             labelId: normalizeWhatsAppLabelId(
               req.body.label
             ),
+            listId: normalizeCrmListId(
+              req.body.list
+            ),
             saved: true
           })
         );
@@ -776,6 +802,9 @@ export function registerWhatsAppCrmRoutes(
             ),
             labelId: normalizeWhatsAppLabelId(
               req.body.label
+            ),
+            listId: normalizeCrmListId(
+              req.body.list
             ),
             saved: true
           })
@@ -816,10 +845,215 @@ export function registerWhatsAppCrmRoutes(
             labelId: normalizeWhatsAppLabelId(
               req.body.label
             ),
+            listId: normalizeCrmListId(
+              req.body.list
+            ),
             saved: true
           })
         );
       } catch (error) {
+        next(error);
+      }
+    }
+  );
+
+
+  app.post(
+    '/conversatii/liste-creeaza',
+    requireAuth,
+    async (req, res, next) => {
+      try {
+        const clientId = integerId(
+          req.body.client_id
+        );
+
+        const list = await createCrmWhatsAppList(
+          req.body.name
+        );
+
+        if (clientId) {
+          await addClientToCrmWhatsAppList(
+            clientId,
+            list.id
+          );
+        }
+
+        return res.redirect(
+          buildWhatsAppOrganizerUrl({
+            clientId,
+            q: searchText(req.body.q),
+            scope: normalizeConversationScope(
+              req.body.scope
+            ),
+            labelId: normalizeWhatsAppLabelId(
+              req.body.label
+            ),
+            listId: normalizeCrmListId(
+              req.body.list
+            ),
+            saved: true
+          })
+        );
+      } catch (error) {
+        next(error);
+      }
+    }
+  );
+
+  app.post(
+    '/conversatii/:clientId/lista-adauga',
+    requireAuth,
+    async (req, res, next) => {
+      try {
+        const clientId = integerId(
+          req.params.clientId
+        );
+
+        if (!clientId) {
+          return res.status(400).send(
+            'Client nevalid'
+          );
+        }
+
+        await addClientToCrmWhatsAppList(
+          clientId,
+          req.body.list_id
+        );
+
+        return res.redirect(
+          buildWhatsAppOrganizerUrl({
+            clientId,
+            q: searchText(req.body.q),
+            scope: normalizeConversationScope(
+              req.body.scope
+            ),
+            labelId: normalizeWhatsAppLabelId(
+              req.body.label
+            ),
+            listId: normalizeCrmListId(
+              req.body.list
+            ),
+            saved: true
+          })
+        );
+      } catch (error) {
+        next(error);
+      }
+    }
+  );
+
+  app.post(
+    '/conversatii/:clientId/lista-elimina',
+    requireAuth,
+    async (req, res, next) => {
+      try {
+        const clientId = integerId(
+          req.params.clientId
+        );
+
+        if (!clientId) {
+          return res.status(400).send(
+            'Client nevalid'
+          );
+        }
+
+        await removeClientFromCrmWhatsAppList(
+          clientId,
+          req.body.list_id
+        );
+
+        return res.redirect(
+          buildWhatsAppOrganizerUrl({
+            clientId,
+            q: searchText(req.body.q),
+            scope: normalizeConversationScope(
+              req.body.scope
+            ),
+            labelId: normalizeWhatsAppLabelId(
+              req.body.label
+            ),
+            listId: normalizeCrmListId(
+              req.body.list
+            ),
+            saved: true
+          })
+        );
+      } catch (error) {
+        next(error);
+      }
+    }
+  );
+
+  app.get(
+    '/conversatii/avatar/:clientId',
+    requireAuth,
+    async (req, res, next) => {
+      try {
+        const clientId = integerId(
+          req.params.clientId
+        );
+
+        if (!clientId) {
+          return res.status(404).send(
+            'Avatar inexistent'
+          );
+        }
+
+        const result = await query(`
+          SELECT
+            file_path,
+            content_type,
+            status,
+            updated_at
+          FROM crm.whatsapp_profile_photos
+          WHERE client_id = $1
+            AND status = 'ok'
+            AND file_path IS NOT NULL
+          LIMIT 1
+        `, [clientId]);
+
+        if (!result.rowCount) {
+          return res.status(404).send(
+            'Avatar inexistent'
+          );
+        }
+
+        const record = result.rows[0];
+        const filePath = absoluteProfilePhotoPath(
+          record.file_path
+        );
+
+        if (!filePath) {
+          return res.status(404).send(
+            'Avatar inexistent'
+          );
+        }
+
+        await fs.access(filePath);
+
+        res.type(
+          record.content_type ||
+          'image/jpeg'
+        );
+
+        res.set(
+          'Cache-Control',
+          'private, max-age=86400'
+        );
+
+        res.set(
+          'X-Content-Type-Options',
+          'nosniff'
+        );
+
+        return res.sendFile(filePath);
+      } catch (error) {
+        if (error?.code === 'ENOENT') {
+          return res.status(404).send(
+            'Avatar inexistent'
+          );
+        }
+
         next(error);
       }
     }

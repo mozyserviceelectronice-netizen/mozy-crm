@@ -145,6 +145,10 @@ function conversatiiUrl(overrides = {}) {
     overrides.labelId !== undefined
       ? overrides.labelId
       : (labelId || '');
+  const nextList =
+    overrides.listId !== undefined
+      ? overrides.listId
+      : (listId || '');
   const nextClient =
     overrides.clientId !== undefined
       ? overrides.clientId
@@ -164,6 +168,10 @@ function conversatiiUrl(overrides = {}) {
     params.set('label', nextLabel);
   }
 
+  if (nextList) {
+    params.set('list', String(nextList));
+  }
+
   return `/conversatii?${params.toString()}`;
 }
 
@@ -171,6 +179,32 @@ function rowLabels(row) {
   return Array.isArray(row?.whatsapp_labels)
     ? row.whatsapp_labels
     : [];
+}
+
+function rowCrmLists(row) {
+  return Array.isArray(row?.whatsapp_crm_lists)
+    ? row.whatsapp_crm_lists
+    : [];
+}
+
+function profilePhotoUrl(row) {
+  if (!row?.whatsapp_profile_photo_path) {
+    return null;
+  }
+
+  const version = row
+    .whatsapp_profile_photo_updated_at
+      ? new Date(
+          row.whatsapp_profile_photo_updated_at
+        ).getTime()
+      : 0;
+
+  return `/conversatii/avatar/${row.client_id || row.id}?v=${version}`;
+}
+
+function localMediaAvailable(row) {
+  return String(row?.media_url || '')
+    .startsWith('whatsapp-media/');
 }
 %>
 
@@ -262,6 +296,14 @@ function rowLabels(row) {
         >
       <% } %>
 
+      <% if (listId) { %>
+        <input
+          type="hidden"
+          name="list"
+          value="<%= listId %>"
+        >
+      <% } %>
+
       <label for="whatsapp-search-input">
         Caută conversații
       </label>
@@ -340,8 +382,16 @@ function rowLabels(row) {
           >
         <% } %>
 
+        <% if (listId) { %>
+          <input
+            type="hidden"
+            name="list"
+            value="<%= listId %>"
+          >
+        <% } %>
+
         <label for="whatsapp-label-filter">
-          Etichetă
+          Etichetă WhatsApp
         </label>
 
         <div class="whatsapp-label-filter-row">
@@ -373,6 +423,69 @@ function rowLabels(row) {
           </button>
         </div>
       </form>
+
+      <form
+        class="whatsapp-label-filter whatsapp-crm-list-filter"
+        method="get"
+        action="/conversatii"
+      >
+        <input
+          type="hidden"
+          name="scope"
+          value="<%= scope || 'active' %>"
+        >
+
+        <% if (q) { %>
+          <input
+            type="hidden"
+            name="q"
+            value="<%= q %>"
+          >
+        <% } %>
+
+        <% if (labelId) { %>
+          <input
+            type="hidden"
+            name="label"
+            value="<%= labelId %>"
+          >
+        <% } %>
+
+        <label for="whatsapp-crm-list-filter">
+          Listă CRM
+        </label>
+
+        <div class="whatsapp-label-filter-row">
+          <select
+            id="whatsapp-crm-list-filter"
+            name="list"
+          >
+            <option value="">
+              Toate listele CRM
+            </option>
+
+            <% (allCrmLists || []).forEach(item => { %>
+              <option
+                value="<%= item.id %>"
+                <%= String(listId || '') ===
+                  String(item.id)
+                    ? 'selected'
+                    : '' %>
+              >
+                <%= item.name %>
+                (<%= item.member_count %>)
+              </option>
+            <% }) %>
+          </select>
+
+          <button
+            class="button secondary"
+            type="submit"
+          >
+            Filtrează
+          </button>
+        </div>
+      </form>
     </div>
 
     <div class="whatsapp-conversation-list">
@@ -386,6 +499,15 @@ function rowLabels(row) {
             <span>
               Conversațiile arhivate local în CRM
               vor apărea aici.
+            </span>
+          <% } else if (listId) { %>
+            <strong>
+              Lista CRM este goală.
+            </strong>
+
+            <span>
+              Adaugă conversații în această listă
+              din panoul conversației.
             </span>
           <% } else if (labelId) { %>
             <strong>
@@ -418,7 +540,19 @@ function rowLabels(row) {
           }) %>"
         >
           <div class="whatsapp-avatar">
-            <%= numeAfisat(row).slice(0, 1).toUpperCase() %>
+            <% if (profilePhotoUrl(row)) { %>
+              <img
+                src="<%= profilePhotoUrl(row) %>"
+                alt=""
+                loading="lazy"
+              >
+            <% } else { %>
+              <span>
+                <%= numeAfisat(row)
+                  .slice(0, 1)
+                  .toUpperCase() %>
+              </span>
+            <% } %>
           </div>
 
           <div class="whatsapp-conversation-summary">
@@ -481,6 +615,18 @@ function rowLabels(row) {
                   +<%= rowLabels(row).length - 3 %>
                 </span>
               <% } %>
+
+              <% rowCrmLists(row).slice(0, 2).forEach(item => { %>
+                <span class="whatsapp-crm-list-chip">
+                  <%= item.name %>
+                </span>
+              <% }) %>
+
+              <% if (rowCrmLists(row).length > 2) { %>
+                <span class="whatsapp-crm-list-chip">
+                  +<%= rowCrmLists(row).length - 2 %>
+                </span>
+              <% } %>
             </div>
           </div>
         </a>
@@ -500,6 +646,21 @@ function rowLabels(row) {
     <% } else { %>
       <header class="whatsapp-chat-header">
           <div class="whatsapp-chat-header-main">
+            <div class="whatsapp-chat-profile-avatar">
+              <% if (profilePhotoUrl(client)) { %>
+                <img
+                  src="<%= profilePhotoUrl(client) %>"
+                  alt=""
+                >
+              <% } else { %>
+                <span>
+                  <%= numeAfisat(client)
+                    .slice(0, 1)
+                    .toUpperCase() %>
+                </span>
+              <% } %>
+            </div>
+
             <div class="whatsapp-chat-title-block">
               <h2>
                 <%= numeAfisat(client) %>
@@ -629,6 +790,11 @@ function rowLabels(row) {
           >
           <input
             type="hidden"
+            name="list"
+            value="<%= listId || '' %>"
+          >
+          <input
+            type="hidden"
             name="q"
             value="<%= q || '' %>"
           >
@@ -647,7 +813,7 @@ function rowLabels(row) {
 
         <details class="whatsapp-label-manager">
           <summary>
-            Etichete
+            Etichete WhatsApp
             <span>
               <%= rowLabels(client).length %>
             </span>
@@ -681,6 +847,11 @@ function rowLabels(row) {
                     type="hidden"
                     name="label"
                     value="<%= labelId || '' %>"
+                  >
+                  <input
+                    type="hidden"
+                    name="list"
+                    value="<%= listId || '' %>"
                   >
                   <input
                     type="hidden"
@@ -732,6 +903,11 @@ function rowLabels(row) {
                 >
                 <input
                   type="hidden"
+                  name="list"
+                  value="<%= listId || '' %>"
+                >
+                <input
+                  type="hidden"
                   name="q"
                   value="<%= q || '' %>"
                 >
@@ -762,8 +938,183 @@ function rowLabels(row) {
           </div>
         </details>
 
+        <details class="whatsapp-label-manager whatsapp-crm-list-manager">
+          <summary>
+            Liste CRM
+            <span>
+              <%= rowCrmLists(client).length %>
+            </span>
+          </summary>
+
+          <div class="whatsapp-label-manager-body">
+            <div class="whatsapp-current-labels">
+              <% if (!rowCrmLists(client).length) { %>
+                <span class="whatsapp-label-empty">
+                  Conversația nu este în nicio listă CRM.
+                </span>
+              <% } %>
+
+              <% rowCrmLists(client).forEach(item => { %>
+                <form
+                  method="post"
+                  action="/conversatii/<%= client.id %>/lista-elimina"
+                  class="whatsapp-label-remove-form"
+                >
+                  <input
+                    type="hidden"
+                    name="list_id"
+                    value="<%= item.id %>"
+                  >
+                  <input
+                    type="hidden"
+                    name="scope"
+                    value="<%= scope || 'active' %>"
+                  >
+                  <input
+                    type="hidden"
+                    name="label"
+                    value="<%= labelId || '' %>"
+                  >
+                  <input
+                    type="hidden"
+                    name="list"
+                    value="<%= listId || '' %>"
+                  >
+                  <input
+                    type="hidden"
+                    name="q"
+                    value="<%= q || '' %>"
+                  >
+
+                  <button
+                    type="submit"
+                    class="whatsapp-crm-list-chip whatsapp-label-chip--button"
+                    title="Elimină din listă"
+                  >
+                    <%= item.name %>
+                    <span aria-hidden="true">×</span>
+                  </button>
+                </form>
+              <% }) %>
+            </div>
+
+            <%
+              const assignedCrmListIds = new Set(
+                rowCrmLists(client).map(item =>
+                  String(item.id)
+                )
+              );
+
+              const availableCrmLists =
+                (allCrmLists || []).filter(item =>
+                  !assignedCrmListIds.has(
+                    String(item.id)
+                  )
+                );
+            %>
+
+            <% if (availableCrmLists.length) { %>
+              <form
+                method="post"
+                action="/conversatii/<%= client.id %>/lista-adauga"
+                class="whatsapp-label-add-form"
+              >
+                <input
+                  type="hidden"
+                  name="scope"
+                  value="<%= scope || 'active' %>"
+                >
+                <input
+                  type="hidden"
+                  name="label"
+                  value="<%= labelId || '' %>"
+                >
+                <input
+                  type="hidden"
+                  name="list"
+                  value="<%= listId || '' %>"
+                >
+                <input
+                  type="hidden"
+                  name="q"
+                  value="<%= q || '' %>"
+                >
+
+                <select
+                  name="list_id"
+                  required
+                >
+                  <option value="">
+                    Alege o listă CRM
+                  </option>
+
+                  <% availableCrmLists.forEach(item => { %>
+                    <option value="<%= item.id %>">
+                      <%= item.name %>
+                    </option>
+                  <% }) %>
+                </select>
+
+                <button
+                  class="button secondary"
+                  type="submit"
+                >
+                  Adaugă
+                </button>
+              </form>
+            <% } %>
+
+            <form
+              method="post"
+              action="/conversatii/liste-creeaza"
+              class="whatsapp-crm-list-create-form"
+            >
+              <input
+                type="hidden"
+                name="client_id"
+                value="<%= client.id %>"
+              >
+              <input
+                type="hidden"
+                name="scope"
+                value="<%= scope || 'active' %>"
+              >
+              <input
+                type="hidden"
+                name="label"
+                value="<%= labelId || '' %>"
+              >
+              <input
+                type="hidden"
+                name="list"
+                value="<%= listId || '' %>"
+              >
+              <input
+                type="hidden"
+                name="q"
+                value="<%= q || '' %>"
+              >
+
+              <input
+                type="text"
+                name="name"
+                maxlength="120"
+                required
+                placeholder="Nume listă nouă"
+              >
+
+              <button
+                class="button secondary"
+                type="submit"
+              >
+                Creează
+              </button>
+            </form>
+          </div>
+        </details>
+
         <span class="whatsapp-local-only-note">
-          Organizarea este locală în CRM.
+          Arhiva și Listele CRM sunt locale.
         </span>
       </section>
 
@@ -791,7 +1142,7 @@ function rowLabels(row) {
 
               <p><%= mesajAfisat(row) %></p>
 
-              <% if (row.media_url) { %>
+              <% if (localMediaAvailable(row)) { %>
                 <% const mediaHref =
                   `/conversatii/media/${row.id}`; %>
 
@@ -837,6 +1188,23 @@ function rowLabels(row) {
                     📄 Deschide documentul
                   </a>
                 <% } %>
+              <% } else if (
+                ['image', 'video', 'audio', 'document']
+                  .includes(row.tip)
+              ) { %>
+                <div class="whatsapp-media-unavailable">
+                  <strong>
+                    <%= row.tip === 'image'
+                      ? 'Imagine indisponibilă'
+                      : 'Fișier indisponibil' %>
+                  </strong>
+
+                  <span>
+                    <%= row.media_recovery_status === 'unavailable'
+                      ? 'WhatsApp nu mai permite recuperarea acestui fișier vechi.'
+                      : 'Recuperarea locală este în curs sau va fi reîncercată.' %>
+                  </span>
+                </div>
               <% } %>
 
               <time datetime="<%= row.created_at %>">
