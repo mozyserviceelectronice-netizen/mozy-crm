@@ -933,6 +933,7 @@ function rowLabels(row) {
 
 <%- include('partials/footer') %>
 
+<% if (client) { %>
 <script nonce="<%= cspNonce %>">
 (() => {
   const input = document.getElementById(
@@ -1107,3 +1108,4 @@ function rowLabels(row) {
   });
 })();
 </script>
+<% } %>
