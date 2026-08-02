@@ -9897,3 +9897,360 @@ body:has(.whatsapp-shell)
 }
 
 /* WHATSAPP_AVATAR_LAYOUT_FIX_V1_END */
+
+/* WHATSAPP_ERGONOMIC_DESKTOP_V1_BEGIN */
+
+@media (min-width: 1100px) {
+  /*
+   * Folosim mai mult din suprafața monitorului.
+   */
+  body:has(.whatsapp-shell) .content {
+    padding:
+      12px
+      16px
+      10px !important;
+  }
+
+  body:has(.whatsapp-shell)
+  .whatsapp-page-heading {
+    margin-bottom: 10px !important;
+  }
+
+  body:has(.whatsapp-shell)
+  .whatsapp-signature-hero {
+    min-height: 58px;
+    padding: 10px 16px;
+    border-radius: 18px;
+  }
+
+  body:has(.whatsapp-shell)
+  .whatsapp-signature-orb {
+    width: 34px;
+    height: 34px;
+    flex-basis: 34px;
+    border-radius: 11px;
+  }
+
+  body:has(.whatsapp-shell)
+  .whatsapp-signature-title {
+    font-size: 17px;
+  }
+
+  body:has(.whatsapp-shell)
+  .whatsapp-signature-subtitle {
+    margin-top: 1px;
+    font-size: 11px;
+  }
+
+  /*
+   * Bara „Mesaj nou primit” rămâne vizibilă,
+   * dar nu mai consumă excesiv din înălțime.
+   */
+  body:has(.whatsapp-shell)
+  .content > .notice {
+    display: flex;
+    min-height: 38px;
+    box-sizing: border-box;
+    align-items: center;
+    justify-content: center;
+    margin: 0 0 10px;
+    padding: 8px 16px;
+    border-radius: 12px;
+  }
+
+  /*
+   * Sidebar mai lat și zonă de chat mai aerisită.
+   */
+  body:has(.whatsapp-shell)
+  .whatsapp-shell {
+    grid-template-columns:
+      clamp(360px, 24vw, 430px)
+      minmax(0, 1fr) !important;
+    border-radius: 24px;
+  }
+
+  body:has(.whatsapp-shell)
+  .whatsapp-search {
+    padding: 16px 18px 15px;
+  }
+
+  body:has(.whatsapp-shell)
+  .whatsapp-organizer-toolbar {
+    gap: 10px;
+    padding: 12px 14px 14px;
+  }
+
+  body:has(.whatsapp-shell)
+  .whatsapp-organizer-tabs a {
+    min-height: 40px;
+  }
+
+  body:has(.whatsapp-shell)
+  .whatsapp-organizer-toolbar
+  .whatsapp-label-filter {
+    gap: 7px;
+    padding: 10px 11px;
+    border-radius: 13px;
+  }
+
+  body:has(.whatsapp-shell)
+  .whatsapp-conversation-list {
+    padding: 3px 0 10px;
+  }
+
+  body:has(.whatsapp-shell)
+  .whatsapp-conversation-item {
+    gap: 13px;
+    margin: 5px 9px;
+    padding: 14px 15px;
+    border-radius: 16px;
+  }
+
+  body:has(.whatsapp-shell)
+  .whatsapp-conversation-summary {
+    display: grid;
+    gap: 3px;
+  }
+
+  /*
+   * Antetul conversației.
+   */
+  body:has(.whatsapp-shell)
+  .whatsapp-chat-header {
+    min-height: 104px;
+    box-sizing: border-box;
+    gap: 22px;
+    padding: 18px 24px;
+  }
+
+  body:has(.whatsapp-shell)
+  .whatsapp-chat-header-main {
+    gap: 16px;
+  }
+
+  body:has(.whatsapp-shell)
+  .whatsapp-chat-title-block {
+    flex: 0 1 240px;
+    min-width: 190px;
+  }
+
+  body:has(.whatsapp-shell)
+  .whatsapp-client-notes--inline {
+    min-width: 260px;
+    max-width: 700px;
+    flex: 1 1 440px;
+    margin: 0;
+  }
+
+  body:has(.whatsapp-shell)
+  .whatsapp-chat-actions {
+    gap: 10px;
+  }
+
+  body:has(.whatsapp-shell)
+  .whatsapp-organizer-panel {
+    gap: 12px;
+    padding: 11px 20px;
+  }
+
+  /*
+   * Istoric mesaje cu spațiu mai natural.
+   */
+  body:has(.whatsapp-shell)
+  .whatsapp-message-history {
+    gap: 12px;
+    padding: 22px 26px 26px;
+    scroll-padding-block:
+      22px
+      26px;
+  }
+
+  body:has(.whatsapp-shell)
+  .whatsapp-message-bubble {
+    max-width: min(74%, 820px);
+    padding: 12px 16px 10px;
+    border-radius: 18px;
+  }
+
+  body:has(.whatsapp-shell)
+  .whatsapp-message-bubble p {
+    margin: 0 0 6px;
+    font-size: 14.5px;
+    line-height: 1.55;
+  }
+
+  body:has(.whatsapp-shell)
+  .whatsapp-message-bubble time {
+    line-height: 1.35;
+  }
+
+  body:has(.whatsapp-shell)
+  .whatsapp-media-image {
+    display: block;
+    width: auto;
+    max-width: min(520px, 100%);
+    max-height: 420px;
+    border-radius: 14px;
+    object-fit: contain;
+  }
+
+  /*
+   * Zona de scriere este mai comodă,
+   * fără să ocupe inutil prea mult ecran.
+   */
+  body:has(.whatsapp-shell)
+  .whatsapp-composer {
+    padding: 15px 20px 14px;
+  }
+
+  body:has(.whatsapp-shell)
+  .whatsapp-composer label {
+    margin-bottom: 8px;
+  }
+
+  body:has(.whatsapp-shell)
+  .whatsapp-attachment-controls {
+    margin-bottom: 10px;
+  }
+
+  body:has(.whatsapp-shell)
+  .whatsapp-composer-row {
+    display: grid;
+    grid-template-columns:
+      minmax(0, 1fr)
+      auto;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  body:has(.whatsapp-shell)
+  .whatsapp-composer textarea {
+    min-height: 72px;
+    max-height: 150px;
+    padding: 13px 15px;
+    resize: vertical;
+  }
+
+  body:has(.whatsapp-shell)
+  .whatsapp-composer
+  button[type="submit"] {
+    min-width: 124px;
+    min-height: 64px;
+    align-self: stretch;
+  }
+}
+
+/*
+ * Pe monitoare mari, filtrele folosesc mai eficient
+ * lățimea sidebarului și lasă loc pentru mai multe conversații.
+ */
+@media (min-width: 1500px) {
+  body:has(.whatsapp-shell)
+  .content {
+    padding:
+      10px
+      14px
+      10px !important;
+  }
+
+  body:has(.whatsapp-shell)
+  .whatsapp-shell {
+    grid-template-columns:
+      clamp(410px, 25vw, 460px)
+      minmax(0, 1fr) !important;
+  }
+
+  body:has(.whatsapp-shell)
+  .whatsapp-organizer-toolbar {
+    grid-template-columns:
+      repeat(2, minmax(0, 1fr));
+    align-items: stretch;
+  }
+
+  body:has(.whatsapp-shell)
+  .whatsapp-organizer-tabs {
+    grid-column: 1 / -1;
+  }
+
+  body:has(.whatsapp-shell)
+  .whatsapp-organizer-toolbar
+  .whatsapp-label-filter-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  body:has(.whatsapp-shell)
+  .whatsapp-organizer-toolbar
+  .whatsapp-label-filter-row
+  .button.secondary {
+    width: 100%;
+    min-width: 0;
+    height: 36px;
+  }
+
+  body:has(.whatsapp-shell)
+  .whatsapp-chat-header {
+    padding:
+      20px
+      28px;
+  }
+
+  body:has(.whatsapp-shell)
+  .whatsapp-message-history {
+    padding:
+      26px
+      32px
+      30px;
+  }
+
+  body:has(.whatsapp-shell)
+  .whatsapp-message-bubble {
+    max-width: min(68%, 860px);
+  }
+
+  body:has(.whatsapp-shell)
+  .whatsapp-composer {
+    padding:
+      17px
+      26px
+      15px;
+  }
+}
+
+/*
+ * Laptopuri: păstrăm spațiul util fără a înghesui chatul.
+ */
+@media (
+  min-width: 721px
+) and (
+  max-width: 1099px
+) {
+  body:has(.whatsapp-shell)
+  .content {
+    padding:
+      12px
+      10px
+      10px !important;
+  }
+
+  body:has(.whatsapp-shell)
+  .whatsapp-shell {
+    grid-template-columns:
+      330px
+      minmax(0, 1fr) !important;
+  }
+
+  body:has(.whatsapp-shell)
+  .whatsapp-message-history {
+    padding:
+      18px
+      20px
+      22px;
+  }
+
+  body:has(.whatsapp-shell)
+  .whatsapp-message-bubble {
+    max-width: 84%;
+  }
+}
+
+/* WHATSAPP_ERGONOMIC_DESKTOP_V1_END */
