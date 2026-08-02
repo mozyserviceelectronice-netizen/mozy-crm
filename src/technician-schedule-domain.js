@@ -163,9 +163,6 @@ export function formValues(body = {}, defaults = {}) {
     garantie_luni: text(
       body.garantie_luni ?? defaults.garantie_luni
     ),
-    conditii_comerciale: text(
-      body.conditii_comerciale ?? defaults.conditii_comerciale
-    ),
     data_programare: text(
       body.data_programare ?? defaults.data_programare
     ),
@@ -291,9 +288,6 @@ export function validateForm(values) {
     warranty > 60
   ) {
     errors.push('Perioada garanției trebuie să fie între 1 și 60 luni.');
-  }
-  if (values.conditii_comerciale.length > 1000) {
-    errors.push('Condițiile comerciale pot avea cel mult 1.000 de caractere.');
   }
   if (!validDate(values.data_programare)) {
     errors.push('Data programării nu este validă.');
@@ -428,11 +422,6 @@ export function formatDailySchedule({
       }
       if (row.garantie_luni) {
         lines.push(`Garanție: ${row.garantie_luni} luni`);
-      }
-      if (row.conditii_comerciale) {
-        lines.push(
-          `Condiții: ${compactText(row.conditii_comerciale, 220)}`
-        );
       }
       if (row.observatii) {
         lines.push(`Observații: ${compactText(row.observatii, 220)}`);
