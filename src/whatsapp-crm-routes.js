@@ -383,21 +383,36 @@ async function clientDetails(clientId) {
 async function clientMessages(clientId) {
   return query(`
     SELECT
-      id,
-      directie,
-      tip,
-      mesaj,
-      media_url,
-      message_id,
-      este_citit,
-      necesita_raspuns,
-      created_at
-    FROM crm.conversatii
-    WHERE client_id = $1
+      recent.id,
+      recent.directie,
+      recent.tip,
+      recent.mesaj,
+      recent.media_url,
+      recent.message_id,
+      recent.este_citit,
+      recent.necesita_raspuns,
+      recent.created_at
+    FROM (
+      SELECT
+        id,
+        directie,
+        tip,
+        mesaj,
+        media_url,
+        message_id,
+        este_citit,
+        necesita_raspuns,
+        created_at
+      FROM crm.conversatii
+      WHERE client_id = $1
+      ORDER BY
+        created_at DESC,
+        id DESC
+      LIMIT 500
+    ) recent
     ORDER BY
-      created_at ASC,
-      id ASC
-    LIMIT 500
+      recent.created_at ASC,
+      recent.id ASC
   `, [clientId]);
 }
 
