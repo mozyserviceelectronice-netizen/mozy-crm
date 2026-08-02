@@ -3,6 +3,7 @@ import express from 'express';
 import {
   receiveWhatsAppMedia
 } from './whatsapp-media.js';
+import { registerEvolutionWebhookRoute } from './evolution-webhook.js';
 import crypto from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -91,6 +92,7 @@ app.use(express.urlencoded({
   extended: false,
   limit: '700kb'
 }));
+registerEvolutionWebhookRoute(app);
 app.post(
   '/internal/whatsapp-media',
   express.json({
