@@ -9621,3 +9621,28 @@ body:has(.whatsapp-shell) .whatsapp-client-notes--inline .whatsapp-notes-autosav
     padding-inline: 8px;
   }
 }
+
+/* WHATSAPP_EMPTY_ARCHIVE_FIX_V1 */
+.whatsapp-empty-list {
+  display: grid;
+  justify-items: center;
+  gap: 7px;
+  margin: 18px 14px;
+  padding: 24px 16px;
+  border: 1px dashed #cbd7e7;
+  border-radius: 14px;
+  color: #667085;
+  background: #f8fafc;
+  text-align: center;
+}
+
+.whatsapp-empty-list strong {
+  color: #25324b;
+  font-size: 0.9rem;
+}
+
+.whatsapp-empty-list span {
+  max-width: 260px;
+  font-size: 0.78rem;
+  line-height: 1.45;
+}

@@ -555,15 +555,32 @@ export function registerWhatsAppCrmRoutes(
         const liveState =
           liveStateResult.rows[0] || {};
 
+        const conversationRows =
+          Array.isArray(listResult?.rows)
+            ? listResult.rows
+            : [];
+
         let selectedClientId = requestedClientId;
 
-        if (
-          !selectedClientId &&
-          listResult.rows.length
-        ) {
-          selectedClientId = Number(
-            listResult.rows[0].client_id
-          );
+        /*
+         * Selecția trebuie să aparțină filtrului curent.
+         * Pentru o listă goală nu încărcăm niciun client.
+         */
+        if (!conversationRows.length) {
+          selectedClientId = null;
+        } else {
+          const selectedExists =
+            selectedClientId &&
+            conversationRows.some(row =>
+              Number(row.client_id) ===
+              Number(selectedClientId)
+            );
+
+          if (!selectedExists) {
+            selectedClientId = Number(
+              conversationRows[0].client_id
+            );
+          }
         }
 
         let client = null;
@@ -604,7 +621,8 @@ export function registerWhatsAppCrmRoutes(
         res.render('conversatii', {
             noteSaved: req.query.note_saved === '1',
           
-            readAll: req.query.read_all === '1',rows: listResult.rows,
+            readAll: req.query.read_all === '1',
+          rows: conversationRows,
           currentClient: client,
           messages,
           selectedClientId,

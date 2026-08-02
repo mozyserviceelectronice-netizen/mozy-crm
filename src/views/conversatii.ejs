@@ -17,6 +17,11 @@
 <%
 const client = currentClient || null;
 
+const conversationRows =
+  Array.isArray(rows)
+    ? rows
+    : [];
+
 const numeInvalide = [
   'você',
   'voce',
@@ -371,13 +376,39 @@ function rowLabels(row) {
     </div>
 
     <div class="whatsapp-conversation-list">
-      <% if (!rows.length) { %>
-        <p class="empty whatsapp-empty-list">
-          Nu există conversații pentru această căutare.
-        </p>
+      <% if (!conversationRows.length) { %>
+        <div class="empty whatsapp-empty-list">
+          <% if (scope === 'archived') { %>
+            <strong>
+              Nu ai conversații arhivate.
+            </strong>
+
+            <span>
+              Conversațiile arhivate local în CRM
+              vor apărea aici.
+            </span>
+          <% } else if (labelId) { %>
+            <strong>
+              Nicio conversație cu această etichetă.
+            </strong>
+
+            <span>
+              Schimbă eticheta sau elimină filtrul.
+            </span>
+          <% } else { %>
+            <strong>
+              Nu există conversații.
+            </strong>
+
+            <span>
+              Nu au fost găsite rezultate pentru
+              filtrul curent.
+            </span>
+          <% } %>
+        </div>
       <% } %>
 
-      <% rows.forEach(row => { %>
+      <% conversationRows.forEach(row => { %>
         <a
           class="whatsapp-conversation-item
             <%= Number(selectedClientId) === Number(row.client_id) ? 'active' : '' %>
