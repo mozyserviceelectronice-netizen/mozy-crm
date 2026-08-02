@@ -1491,6 +1491,10 @@ document.addEventListener('DOMContentLoaded', () => {
     shell.dataset.messageTotal || 0
   );
 
+  let syncRevision = Number(
+    shell.dataset.syncRevision || 0
+  );
+
   let requestRunning = false;
   let refreshPending = false;
 
@@ -1592,9 +1596,14 @@ document.addEventListener('DOMContentLoaded', () => {
         state.messageTotal || 0
       );
 
+      const nextSyncRevision = Number(
+        state.syncRevision || 0
+      );
+
       const changed =
         nextLatestMessageId !== latestMessageId ||
-        nextMessageTotal !== messageTotal;
+        nextMessageTotal !== messageTotal ||
+        nextSyncRevision !== syncRevision;
 
       if (!changed) {
         return;
@@ -1602,6 +1611,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       latestMessageId = nextLatestMessageId;
       messageTotal = nextMessageTotal;
+      syncRevision = nextSyncRevision;
 
       reloadPage();
     } catch (error) {

@@ -5,6 +5,20 @@ import path from 'node:path';
 
 import { query } from './db.js';
 import {
+  addLocalConversationLabel,
+  buildWhatsAppOrganizerUrl,
+  getWhatsAppOrganizerForClient,
+  listOrganizedConversations,
+  listWhatsAppLabels,
+  normalizeConversationScope,
+  normalizeWhatsAppLabelId,
+  removeLocalConversationLabel,
+  setLocalConversationArchived,
+  whatsappOrganizerState
+} from './whatsapp-organizer.js';
+
+// WHATSAPP_ORGANIZER_V1
+import {
   absoluteWhatsAppMediaPath,
   whatsappMediaContentType,
   whatsappMediaDownloadName
@@ -436,7 +450,14 @@ export function registerWhatsAppCrmRoutes(
     requireAuth,
     async (_req, res, next) => {
       try {
-        const result = await whatsappLiveState();
+        const [
+          result,
+          organizerState
+        ] = await Promise.all([
+          whatsappLiveState(),
+          whatsappOrganizerState()
+        ]);
+
         const row = result.rows[0] || {};
 
         res.set(
@@ -450,6 +471,9 @@ export function registerWhatsAppCrmRoutes(
           ),
           messageTotal: Number(
             row.message_total || 0
+          ),
+          syncRevision: Number(
+            organizerState.revision || 0
           )
         });
       } catch (error) {
@@ -499,6 +523,12 @@ export function registerWhatsAppCrmRoutes(
     async (req, res, next) => {
       try {
         const q = searchText(req.query.q);
+        const scope = normalizeConversationScope(
+          req.query.scope
+        );
+        const labelId = normalizeWhatsAppLabelId(
+          req.query.label
+        );
 
         await syncWhatsAppGroupNames();
 
@@ -508,10 +538,18 @@ export function registerWhatsAppCrmRoutes(
 
         const [
           listResult,
-          liveStateResult
+          liveStateResult,
+          allLabels,
+          organizerState
         ] = await Promise.all([
-          conversationList(q),
-          whatsappLiveState()
+          listOrganizedConversations(
+            q,
+            scope,
+            labelId
+          ),
+          whatsappLiveState(),
+          listWhatsAppLabels(),
+          whatsappOrganizerState()
         ]);
 
         const liveState =
@@ -537,7 +575,15 @@ export function registerWhatsAppCrmRoutes(
           );
 
           if (detailsResult.rowCount) {
-            client = detailsResult.rows[0];
+            const organizer =
+              await getWhatsAppOrganizerForClient(
+                selectedClientId
+              );
+
+            client = {
+              ...detailsResult.rows[0],
+              ...organizer
+            };
 
             await query(`
               UPDATE crm.conversatii
@@ -563,6 +609,11 @@ export function registerWhatsAppCrmRoutes(
           messages,
           selectedClientId,
           q,
+          scope,
+          labelId,
+          allLabels,
+          organizerSaved:
+            req.query.organizer_saved === '1',
           sent: req.query.sent === '1',
           errorCode: String(req.query.error || ''),
           latestMessageId: Number(
@@ -570,6 +621,9 @@ export function registerWhatsAppCrmRoutes(
           ),
           messageTotal: Number(
             liveState.message_total || 0
+          ),
+          syncRevision: Number(
+            organizerState.revision || 0
           ),
           active: 'conversatii'
         });
@@ -626,6 +680,126 @@ export function registerWhatsAppCrmRoutes(
 
         return res.redirect(
           `/conversatii?${params.toString()}`
+        );
+      } catch (error) {
+        next(error);
+      }
+    }
+  );
+
+
+  app.post(
+    '/conversatii/:clientId/arhivare-locala',
+    requireAuth,
+    async (req, res, next) => {
+      try {
+        const clientId = integerId(
+          req.params.clientId
+        );
+
+        if (!clientId) {
+          return res.status(400).send(
+            'Client nevalid'
+          );
+        }
+
+        const archived =
+          String(req.body.archived || '') === '1';
+
+        await setLocalConversationArchived(
+          clientId,
+          archived
+        );
+
+        return res.redirect(
+          buildWhatsAppOrganizerUrl({
+            q: searchText(req.body.q),
+            scope: normalizeConversationScope(
+              req.body.scope
+            ),
+            labelId: normalizeWhatsAppLabelId(
+              req.body.label
+            ),
+            saved: true
+          })
+        );
+      } catch (error) {
+        next(error);
+      }
+    }
+  );
+
+  app.post(
+    '/conversatii/:clientId/eticheta-adauga',
+    requireAuth,
+    async (req, res, next) => {
+      try {
+        const clientId = integerId(
+          req.params.clientId
+        );
+
+        if (!clientId) {
+          return res.status(400).send(
+            'Client nevalid'
+          );
+        }
+
+        await addLocalConversationLabel(
+          clientId,
+          req.body.label_id
+        );
+
+        return res.redirect(
+          buildWhatsAppOrganizerUrl({
+            clientId,
+            q: searchText(req.body.q),
+            scope: normalizeConversationScope(
+              req.body.scope
+            ),
+            labelId: normalizeWhatsAppLabelId(
+              req.body.label
+            ),
+            saved: true
+          })
+        );
+      } catch (error) {
+        next(error);
+      }
+    }
+  );
+
+  app.post(
+    '/conversatii/:clientId/eticheta-elimina',
+    requireAuth,
+    async (req, res, next) => {
+      try {
+        const clientId = integerId(
+          req.params.clientId
+        );
+
+        if (!clientId) {
+          return res.status(400).send(
+            'Client nevalid'
+          );
+        }
+
+        await removeLocalConversationLabel(
+          clientId,
+          req.body.label_id
+        );
+
+        return res.redirect(
+          buildWhatsAppOrganizerUrl({
+            clientId,
+            q: searchText(req.body.q),
+            scope: normalizeConversationScope(
+              req.body.scope
+            ),
+            labelId: normalizeWhatsAppLabelId(
+              req.body.label
+            ),
+            saved: true
+          })
         );
       } catch (error) {
         next(error);

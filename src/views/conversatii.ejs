@@ -5,6 +5,15 @@
   </div>
 <% } %>
 
+<% if (
+  typeof organizerSaved !== 'undefined' &&
+  organizerSaved
+) { %>
+  <div class="notice success">
+    Organizarea conversației a fost actualizată în CRM.
+  </div>
+<% } %>
+
 <%
 const client = currentClient || null;
 
@@ -120,6 +129,44 @@ function dataMesaj(value) {
     timeStyle: 'short'
   }).format(new Date(value));
 }
+
+function conversatiiUrl(overrides = {}) {
+  const params = new URLSearchParams();
+  const nextScope =
+    overrides.scope !== undefined
+      ? overrides.scope
+      : (scope || 'active');
+  const nextLabel =
+    overrides.labelId !== undefined
+      ? overrides.labelId
+      : (labelId || '');
+  const nextClient =
+    overrides.clientId !== undefined
+      ? overrides.clientId
+      : selectedClientId;
+
+  params.set('scope', nextScope || 'active');
+
+  if (nextClient) {
+    params.set('client', String(nextClient));
+  }
+
+  if (q) {
+    params.set('q', q);
+  }
+
+  if (nextLabel) {
+    params.set('label', nextLabel);
+  }
+
+  return `/conversatii?${params.toString()}`;
+}
+
+function rowLabels(row) {
+  return Array.isArray(row?.whatsapp_labels)
+    ? row.whatsapp_labels
+    : [];
+}
 %>
 
 <%- include('partials/header', {
@@ -184,6 +231,11 @@ function dataMesaj(value) {
       ? messageTotal
       : 0
   %>"
+  data-sync-revision="<%=
+    typeof syncRevision !== 'undefined'
+      ? syncRevision
+      : 0
+  %>"
 >
   <aside class="whatsapp-conversation-sidebar">
     <form
@@ -191,6 +243,20 @@ function dataMesaj(value) {
       method="get"
       action="/conversatii"
     >
+      <input
+        type="hidden"
+        name="scope"
+        value="<%= scope || 'active' %>"
+      >
+
+      <% if (labelId) { %>
+        <input
+          type="hidden"
+          name="label"
+          value="<%= labelId %>"
+        >
+      <% } %>
+
       <label for="whatsapp-search-input">
         Caută conversații
       </label>
@@ -214,6 +280,96 @@ function dataMesaj(value) {
       </div>
     </form>
 
+    <div class="whatsapp-organizer-toolbar">
+      <nav
+        class="whatsapp-organizer-tabs"
+        aria-label="Starea conversațiilor"
+      >
+        <a
+          class="<%= scope === 'active' ? 'active' : '' %>"
+          href="<%= conversatiiUrl({
+            scope: 'active',
+            clientId: null
+          }) %>"
+        >
+          Active
+        </a>
+
+        <a
+          class="<%= scope === 'archived' ? 'active' : '' %>"
+          href="<%= conversatiiUrl({
+            scope: 'archived',
+            clientId: null
+          }) %>"
+        >
+          Arhivate
+        </a>
+
+        <a
+          class="<%= scope === 'all' ? 'active' : '' %>"
+          href="<%= conversatiiUrl({
+            scope: 'all',
+            clientId: null
+          }) %>"
+        >
+          Toate
+        </a>
+      </nav>
+
+      <form
+        class="whatsapp-label-filter"
+        method="get"
+        action="/conversatii"
+      >
+        <input
+          type="hidden"
+          name="scope"
+          value="<%= scope || 'active' %>"
+        >
+
+        <% if (q) { %>
+          <input
+            type="hidden"
+            name="q"
+            value="<%= q %>"
+          >
+        <% } %>
+
+        <label for="whatsapp-label-filter">
+          Etichetă
+        </label>
+
+        <div class="whatsapp-label-filter-row">
+          <select
+            id="whatsapp-label-filter"
+            name="label"
+          >
+            <option value="">
+              Toate etichetele
+            </option>
+
+            <% (allLabels || []).forEach(item => { %>
+              <option
+                value="<%= item.label_id %>"
+                <%= labelId === item.label_id
+                  ? 'selected'
+                  : '' %>
+              >
+                <%= item.name %>
+              </option>
+            <% }) %>
+          </select>
+
+          <button
+            class="button secondary"
+            type="submit"
+          >
+            Filtrează
+          </button>
+        </div>
+      </form>
+    </div>
+
     <div class="whatsapp-conversation-list">
       <% if (!rows.length) { %>
         <p class="empty whatsapp-empty-list">
@@ -226,7 +382,9 @@ function dataMesaj(value) {
           class="whatsapp-conversation-item
             <%= Number(selectedClientId) === Number(row.client_id) ? 'active' : '' %>
             <%= row.necesita_raspuns ? 'needs-reply' : '' %>"
-          href="/conversatii?client=<%= row.client_id %><%= q ? `&q=${encodeURIComponent(q)}` : '' %>"
+          href="<%= conversatiiUrl({
+            clientId: row.client_id
+          }) %>"
         >
           <div class="whatsapp-avatar">
             <%= numeAfisat(row).slice(0, 1).toUpperCase() %>
@@ -272,6 +430,24 @@ function dataMesaj(value) {
               <% if (row.client_dificil) { %>
                 <span class="flag difficult">
                   Client dificil
+                </span>
+              <% } %>
+
+              <% if (row.whatsapp_archived) { %>
+                <span class="badge whatsapp-archived-badge">
+                  Arhivată în CRM
+                </span>
+              <% } %>
+
+              <% rowLabels(row).slice(0, 3).forEach(item => { %>
+                <span class="whatsapp-label-chip">
+                  <%= item.name %>
+                </span>
+              <% }) %>
+
+              <% if (rowLabels(row).length > 3) { %>
+                <span class="whatsapp-label-chip">
+                  +<%= rowLabels(row).length - 3 %>
                 </span>
               <% } %>
             </div>
@@ -398,6 +574,167 @@ function dataMesaj(value) {
             <% } %>
           </div>
         </header>
+
+      <section class="whatsapp-organizer-panel">
+        <form
+          method="post"
+          action="/conversatii/<%= client.id %>/arhivare-locala"
+          class="whatsapp-archive-form"
+        >
+          <input
+            type="hidden"
+            name="archived"
+            value="<%= client.whatsapp_archived ? '0' : '1' %>"
+          >
+          <input
+            type="hidden"
+            name="scope"
+            value="<%= scope || 'active' %>"
+          >
+          <input
+            type="hidden"
+            name="label"
+            value="<%= labelId || '' %>"
+          >
+          <input
+            type="hidden"
+            name="q"
+            value="<%= q || '' %>"
+          >
+
+          <button
+            class="button <%= client.whatsapp_archived
+              ? 'primary'
+              : 'secondary' %>"
+            type="submit"
+          >
+            <%= client.whatsapp_archived
+              ? 'Reactivează în CRM'
+              : 'Arhivează în CRM' %>
+          </button>
+        </form>
+
+        <details class="whatsapp-label-manager">
+          <summary>
+            Etichete
+            <span>
+              <%= rowLabels(client).length %>
+            </span>
+          </summary>
+
+          <div class="whatsapp-label-manager-body">
+            <div class="whatsapp-current-labels">
+              <% if (!rowLabels(client).length) { %>
+                <span class="whatsapp-label-empty">
+                  Nicio etichetă atribuită.
+                </span>
+              <% } %>
+
+              <% rowLabels(client).forEach(item => { %>
+                <form
+                  method="post"
+                  action="/conversatii/<%= client.id %>/eticheta-elimina"
+                  class="whatsapp-label-remove-form"
+                >
+                  <input
+                    type="hidden"
+                    name="label_id"
+                    value="<%= item.label_id %>"
+                  >
+                  <input
+                    type="hidden"
+                    name="scope"
+                    value="<%= scope || 'active' %>"
+                  >
+                  <input
+                    type="hidden"
+                    name="label"
+                    value="<%= labelId || '' %>"
+                  >
+                  <input
+                    type="hidden"
+                    name="q"
+                    value="<%= q || '' %>"
+                  >
+
+                  <button
+                    type="submit"
+                    class="whatsapp-label-chip whatsapp-label-chip--button"
+                    title="Elimină eticheta"
+                  >
+                    <%= item.name %>
+                    <span aria-hidden="true">×</span>
+                  </button>
+                </form>
+              <% }) %>
+            </div>
+
+            <%
+              const assignedLabelIds = new Set(
+                rowLabels(client).map(item =>
+                  String(item.label_id)
+                )
+              );
+              const availableLabels = (allLabels || [])
+                .filter(item =>
+                  !assignedLabelIds.has(
+                    String(item.label_id)
+                  )
+                );
+            %>
+
+            <% if (availableLabels.length) { %>
+              <form
+                method="post"
+                action="/conversatii/<%= client.id %>/eticheta-adauga"
+                class="whatsapp-label-add-form"
+              >
+                <input
+                  type="hidden"
+                  name="scope"
+                  value="<%= scope || 'active' %>"
+                >
+                <input
+                  type="hidden"
+                  name="label"
+                  value="<%= labelId || '' %>"
+                >
+                <input
+                  type="hidden"
+                  name="q"
+                  value="<%= q || '' %>"
+                >
+
+                <select
+                  name="label_id"
+                  required
+                >
+                  <option value="">
+                    Alege o etichetă
+                  </option>
+
+                  <% availableLabels.forEach(item => { %>
+                    <option value="<%= item.label_id %>">
+                      <%= item.name %>
+                    </option>
+                  <% }) %>
+                </select>
+
+                <button
+                  class="button secondary"
+                  type="submit"
+                >
+                  Adaugă
+                </button>
+              </form>
+            <% } %>
+          </div>
+        </details>
+
+        <span class="whatsapp-local-only-note">
+          Organizarea este locală în CRM.
+        </span>
+      </section>
 
       <div
         class="whatsapp-message-history"
