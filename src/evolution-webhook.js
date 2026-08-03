@@ -514,6 +514,33 @@ async function forwardToN8n(payload) {
   }
 }
 
+// MOZY_N8N_FORWARD_RETRY_V1_BEGIN
+const wait = milliseconds => new Promise(resolve => {
+  setTimeout(resolve, milliseconds);
+});
+
+async function forwardToN8nWithRetry(payload) {
+  let lastError = null;
+
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      await forwardToN8n(payload);
+      return;
+    } catch (error) {
+      lastError = error;
+
+      if (attempt < 3) {
+        await wait(500 * (2 ** (attempt - 1)));
+      }
+    }
+  }
+
+  throw lastError || new Error(
+    'Forwarding-ul către n8n a eșuat fără detalii.'
+  );
+}
+// MOZY_N8N_FORWARD_RETRY_V1_END
+
 export function registerEvolutionWebhookRoute(app) {
   app.post(
     '/internal/evolution-webhook',
@@ -547,15 +574,28 @@ export function registerEvolutionWebhookRoute(app) {
 
         const event = await processPayload(req.body);
 
-        if (forwardedEvents.has(event)) {
-          await forwardToN8n(req.body);
-        }
 
+        // MOZY_N8N_NONBLOCKING_ROUTE_V1_BEGIN
         if (event === 'MESSAGES_UPSERT') {
           scheduleIncomingMediaCapture(
             req.body
           );
         }
+
+        if (forwardedEvents.has(event)) {
+          void forwardToN8nWithRetry(
+            req.body
+          ).catch(error => {
+            console.error(
+              'Forwarding-ul webhook-ului către n8n a eșuat:',
+              {
+                event,
+                error: error?.message || String(error)
+              }
+            );
+          });
+        }
+        // MOZY_N8N_NONBLOCKING_ROUTE_V1_END
 
         return res.status(204).end();
       } catch (error) {
